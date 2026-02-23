@@ -26,6 +26,16 @@ import {
   InsertBuocThucHien,
   insertFileHopDongSchema,
   InsertFileHopDong,
+  CanBo,
+  ThanhToan,
+  TiepNhan,
+  LoaiTien,
+  LoaiThanhToan,
+  LoaiHinhThucThanhToan,
+  LoaiHopDong,
+  NhaCungCap,
+  ChuDauTu,
+  LoaiNganSach,
 } from "@shared/schema";
 import {
   CONTRACT_STATUS_LABELS,
@@ -46,7 +56,11 @@ import {
   Upload,
   X,
   Package,
+  Shield,
+  Stamp,
+  DollarSign,
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -79,6 +93,8 @@ import { FILE_TYPE_LABELS } from "@/lib/constants";
 
 // ⬇️ THÊM (nếu cần dùng cleanup effect cho blob URL)
 import { useEffect } from "react";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 interface ContractViewModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -178,16 +194,14 @@ export default function ContractViewModal({
   };
 
   // ⬇️ THÊM – tải xuống (đúng logic như trang Documents)
-  const handleDownloadDocument = async (document: FileHopDong) => {
+  const handleDownloadDocument = async (docObj: FileHopDong) => {
     try {
       // data URL
-      if (document.noiDungFile && document.noiDungFile.startsWith("data:")) {
-        const link = document.createElement
-          ? document.createElement("a")
-          : globalThis.document.createElement("a");
-        link.href = document.noiDungFile;
-        link.download = document.tenFile || "document";
-        (globalThis.document.body || document.body).appendChild(link);
+      if (docObj.noiDungFile && docObj.noiDungFile.startsWith("data:")) {
+        const link = window.document.createElement("a");
+        link.href = docObj.noiDungFile;
+        link.download = docObj.tenFile || "document";
+        window.document.body.appendChild(link);
         link.click();
         link.remove();
         toast({
@@ -197,15 +211,15 @@ export default function ContractViewModal({
         return;
       }
       // URL tuyệt đối
-      if (document.duongDan && /^https?:\/\//i.test(document.duongDan)) {
-        const resp = await fetch(document.duongDan);
+      if (docObj.duongDan && /^https?:\/\//i.test(docObj.duongDan)) {
+        const resp = await fetch(docObj.duongDan);
         if (!resp.ok) throw new Error("Không thể tải file từ đường dẫn");
         const blob = await resp.blob();
         const url = URL.createObjectURL(blob);
-        const link = globalThis.document.createElement("a");
+        const link = window.document.createElement("a");
         link.href = url;
-        link.download = document.tenFile || "document";
-        globalThis.document.body.appendChild(link);
+        link.download = docObj.tenFile || "document";
+        window.document.body.appendChild(link);
         link.click();
         link.remove();
         URL.revokeObjectURL(url);
@@ -217,15 +231,15 @@ export default function ContractViewModal({
       }
       // fallback: API download
       const response = await fetch(
-        `/api/file-hop-dong/${document.id}/download`
+        `/api/file-hop-dong/${docObj.id}/download`
       );
       if (!response.ok) throw new Error("Không thể tải file");
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
-      const link = globalThis.document.createElement("a");
+      const link = window.document.createElement("a");
       link.href = url;
-      link.download = document.tenFile || "document";
-      globalThis.document.body.appendChild(link);
+      link.download = docObj.tenFile || "document";
+      window.document.body.appendChild(link);
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
@@ -259,49 +273,108 @@ export default function ContractViewModal({
     enabled: isOpen && !!contract,
   });
 
-  // Fetch files for this contract
   const { data: contractFiles = [] } = useQuery<FileHopDong[]>({
     queryKey: ["/api/file-hop-dong"],
     enabled: isOpen && !!contract,
   });
 
-  // Fetch staff list for file upload
-  const { data: staffList = [] } = useQuery({
+  const { data: staffList = [] } = useQuery<CanBo[]>({
     queryKey: ["/api/can-bo"],
     enabled: isAddingFile,
   });
 
-  // Fetch payment data for this contract
-  const { data: payments = [] } = useQuery({
+  const { data: payments = [] } = useQuery<ThanhToan[]>({
     queryKey: ["/api/thanh-toan"],
     enabled: isOpen && !!contract,
   });
-  // Fetch repception data for this contract
-  const { data: repceptions = [] } = useQuery({
+
+  const { data: repceptions = [] } = useQuery<TiepNhan[]>({
     queryKey: ["/api/tiep-nhan"],
     enabled: isOpen && !!contract,
   });
-  const { data: loaiTien = [] } = useQuery({
+
+  const { data: loaiTien = [] } = useQuery<LoaiTien[]>({
     queryKey: ["/api/loai-tien"],
     enabled: isOpen && !!contract,
   });
 
-  const { data: loaiThanhToan = [] } = useQuery({
+  const { data: loaiThanhToan = [] } = useQuery<LoaiThanhToan[]>({
     queryKey: ["/api/loai-thanh-toan"],
     enabled: isOpen && !!contract,
   });
 
-  const { data: loaiHinhThucThanhToan = [] } = useQuery({
+  const { data: loaiHinhThucThanhToan = [] } = useQuery<LoaiHinhThucThanhToan[]>({
     queryKey: ["/api/loai-hinh-thuc-thanh-toan"],
     enabled: isOpen && !!contract,
   });
 
+  const { data: loaiHopDong = [] } = useQuery<LoaiHopDong[]>({
+    queryKey: ["/api/loai-hop-dong"],
+    enabled: isOpen && !!contract,
+  });
+
+  const { data: nhaCungCap = [] } = useQuery<NhaCungCap[]>({
+    queryKey: ["/api/nha-cung-cap"],
+    enabled: isOpen && !!contract,
+  });
+
+  const { data: chuDauTu = [] } = useQuery<ChuDauTu[]>({
+    queryKey: ["/api/chu-dau-tu"],
+    enabled: isOpen && !!contract,
+  });
+
+  const { data: canBo = [] } = useQuery<CanBo[]>({
+    queryKey: ["/api/can-bo"],
+    enabled: isOpen && !!contract,
+  });
+
+  const { data: loaiNganSach = [] } = useQuery<LoaiNganSach[]>({
+    queryKey: ["/api/loai-ngan-sach"],
+    enabled: isOpen && !!contract,
+  });
+
+  const { data: allBaoLanh = [] } = useQuery<any[]>({
+    queryKey: ["/api/bao-lanh"],
+    enabled: isOpen && !!contract,
+  });
+
+  const { data: lcList = [] } = useQuery<any[]>({
+    queryKey: ["/api/thu-tin-dung"],
+    enabled: isOpen && !!contract,
+  });
+
+  const { data: costTypes = [] } = useQuery<any[]>({
+    queryKey: ["/api/loai-chi-phi"],
+    enabled: isOpen && !!contract,
+  });
+
+  const { data: actualCosts = [] } = useQuery<any[]>({
+    queryKey: ["/api/chi-phi-thuc-te"],
+    enabled: isOpen && !!contract,
+  });
+
+  const { data: plannedCosts = [] } = useQuery<any[]>({
+    queryKey: ["/api/chi-phi-theo-hop-dong"],
+    enabled: isOpen && !!contract,
+  });
+
+  const { data: allThuTinDung = [] } = useQuery<any[]>({
+    queryKey: ["/api/thu-tin-dung"],
+    enabled: isOpen && !!contract,
+  });
+
+  const { data: loaiBaoLanh = [] } = useQuery<any[]>({
+    queryKey: ["/api/loai-bao-lanh"],
+    enabled: isOpen && !!contract,
+  });
+
+  // Filters and calculations
   const contractProgressSteps = progressSteps.filter(
     (step) => step.hopDongId === contract.id
   );
   const contractPayments = payments
-    .filter((payment) => payment.hopDongId === contract.id)
-    .map((payment) => {
+    .filter((payment: any) => payment.hopDongId === contract.id)
+    .map((payment: any) => {
       const now = new Date();
       const hanThucHien = payment.hanThucHien
         ? new Date(payment.hanThucHien)
@@ -323,8 +396,79 @@ export default function ContractViewModal({
   );
 
   const reception = repceptions.filter(
-    (reception) => reception.hopDongId === contract.id
+    (reception: any) => reception.hopDongId === contract.id
   );
+
+  const contractBaoLanh = allBaoLanh.filter(
+    (item: any) => item.hopDongId === contract.id
+  );
+
+  const contractThuTinDung = allThuTinDung.filter(
+    (item: any) => item.hopDongId === contract.id
+  );
+
+  // File Upload Form
+  const fileForm = useForm<InsertFileHopDong>({
+    resolver: zodResolver(insertFileHopDongSchema),
+    defaultValues: {
+      hopDongId: contract?.id,
+      tenFile: "",
+      ghiChu: "",
+      ngayTaiLen: new Date().toISOString().split("T")[0],
+      nguoiTaiLen: undefined,
+    },
+  });
+
+  const createFileMutation = useMutation({
+    mutationFn: async (data: InsertFileHopDong) => {
+      return await apiRequest("POST", "/api/file-hop-dong", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/file-hop-dong"] });
+      toast({
+        title: "Thành công",
+        description: "Tài liệu đã được tải lên",
+      });
+      fileForm.reset();
+      setSelectedFile(null);
+      setIsAddingFile(false);
+    },
+    onError: () => {
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải lên tài liệu",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      if (!fileForm.getValues("tenFile")) {
+        fileForm.setValue("tenFile", file.name);
+      }
+    }
+  };
+
+  const handleFileUpload = async (data: InsertFileHopDong) => {
+    if (selectedFile) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        createFileMutation.mutate({
+          ...data,
+          noiDungFile: base64String,
+          kichThuoc: selectedFile.size,
+          loaiFile: selectedFile.type,
+        });
+      };
+      reader.readAsDataURL(selectedFile);
+    } else {
+      createFileMutation.mutate(data);
+    }
+  };
 
   const form = useForm<InsertBuocThucHien>({
     resolver: zodResolver(insertBuocThucHienSchema),
@@ -368,32 +512,6 @@ export default function ContractViewModal({
         variant: "destructive",
       });
     },
-  });
-
-  // Fetch reference data to show detailed information instead of IDs
-  const { data: loaiHopDong = [] } = useQuery({
-    queryKey: ["/api/loai-hop-dong"],
-    enabled: isOpen && !!contract,
-  });
-
-  const { data: nhaCungCap = [] } = useQuery({
-    queryKey: ["/api/nha-cung-cap"],
-    enabled: isOpen && !!contract,
-  });
-
-  const { data: chuDauTu = [] } = useQuery({
-    queryKey: ["/api/chu-dau-tu"],
-    enabled: isOpen && !!contract,
-  });
-
-  const { data: canBo = [] } = useQuery({
-    queryKey: ["/api/can-bo"],
-    enabled: isOpen && !!contract,
-  });
-
-  const { data: loaiNganSach = [] } = useQuery({
-    queryKey: ["/api/loai-ngan-sach"],
-    enabled: isOpen && !!contract,
   });
 
   const formatDate = (dateString: string | null) => {
@@ -462,18 +580,46 @@ export default function ContractViewModal({
     return new Intl.NumberFormat("vi-VN").format(amount);
   };
 
-  const getCurrencyName = (currencyId: number | null) => {
-    const currency = loaiTien.find((item: any) => item.id === currencyId);
+  const getCurrencyName = (currencyId?: string | number | null) => {
+    if (currencyId === undefined || currencyId === null) return "VND";
+    const idNum = typeof currencyId === "string" ? parseInt(currencyId) : currencyId;
+    const currency = (loaiTien as any[]).find((item: any) => item.id === idNum);
     return currency?.ten || "VND";
   };
 
   const getPaymentTypeName = (typeId: number | null) => {
-    const type = loaiThanhToan.find((item: any) => item.id === typeId);
+    const type = (loaiThanhToan as any[]).find((item: any) => item.id === typeId);
     return type?.ten || "Chưa xác định";
   };
 
+  const contractActualCosts = actualCosts.filter((c: any) => c.hopDongId === contract.id);
+  const contractPlannedCosts = plannedCosts.filter((c: any) => c.hopDongId === contract.id);
+
+  const exportCosts = (type: "actual" | "planned") => {
+    const data = type === "actual" ? contractActualCosts : contractPlannedCosts;
+    const title = type === "actual" ? "Chi phí thực tế" : "Chi phí theo hợp đồng";
+
+    const rows = data.map((c: any) => {
+      const costType = costTypes.find((t: any) => t.id === c.loaiChiPhiId);
+      return {
+        "Hợp đồng": `${contract.soHdNgoai || contract.soHdNoi} - ${contract.ten}`,
+        "Loại chi phí": costType?.tenLoai || "-",
+        "Ngày thực hiện": c.ngayThucHien ? new Date(c.ngayThucHien).toLocaleDateString("vi-VN") : "-",
+        "Trị giá": c.triGia,
+        "Ghi chú": c.ghiChu,
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, title);
+    const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    saveAs(blob, `chi_phi_${type === "actual" ? "thuc_te" : "theo_hd"}_${contract.soHdNgoai || contract.id}.xlsx`);
+  };
+
   const getPaymentMethodName = (methodId: number | null) => {
-    const method = loaiHinhThucThanhToan.find(
+    const method = (loaiHinhThucThanhToan as any[]).find(
       (item: any) => item.id === methodId
     );
     return method?.ten || "Chưa xác định";
@@ -490,11 +636,14 @@ export default function ContractViewModal({
         </DialogHeader>
 
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="info">Theo dõi hợp đồng</TabsTrigger>
-            <TabsTrigger value="payments">Tài chính</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-7">
+            <TabsTrigger value="info">Theo dõi</TabsTrigger>
+            <TabsTrigger value="payments">Thanh toán</TabsTrigger>
+            <TabsTrigger value="costs">Chi phí</TabsTrigger>
+            <TabsTrigger value="bao-lanh">Bảo lãnh</TabsTrigger>
+            <TabsTrigger value="thu-tin-dung">L/C</TabsTrigger>
             <TabsTrigger value="files">Tài liệu</TabsTrigger>
-            <TabsTrigger value="reception">Tiếp nhận</TabsTrigger>
+            <TabsTrigger value="reception">Nhập/Xuất</TabsTrigger>
           </TabsList>
 
           {/* Contract Info Tab */}
@@ -561,7 +710,7 @@ export default function ContractViewModal({
                     Loại ngân sách
                   </label>
                   <p className="mt-1 text-sm text-gray-900">
-                    {loaiNganSach.find(
+                    {(loaiNganSach as any[]).find(
                       (item: any) => item.id === contract.loaiNganSachId
                     )?.ten || "Chưa xác định"}
                   </p>
@@ -597,22 +746,83 @@ export default function ContractViewModal({
 
             {/* Description */}
             {contract.moTa && (
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Mô tả</h3>
-                <p className="text-sm text-gray-900 whitespace-pre-wrap">
+              <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                <h3 className="text-sm font-semibold text-slate-900 mb-2">Mô tả hợp đồng</h3>
+                <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
                   {contract.moTa}
                 </p>
               </div>
             )}
 
-            <Separator />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Budget Information */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-slate-900 flex items-center space-x-2">
+                  <span className="w-1 h-4 bg-blue-600 rounded-full"></span>
+                  <span>Thông tin ngân sách & Chi phí</span>
+                </h3>
+                <div className="grid grid-cols-1 gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-50">
+                    <span className="text-sm text-slate-500">Tổng hạn mức ngân sách</span>
+                    <span className="text-sm font-bold text-blue-700">
+                      {formatCurrency(contract.tongHanMucNganSach || 0)} {contract.loaiTienTongHanMuc || "VNĐ"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-50">
+                    <span className="text-sm text-slate-500">Chi phí đoàn ra, đoàn vào</span>
+                    <span className="text-sm font-semibold text-slate-900">
+                      {formatCurrency(contract.chiPhiDoanRaDoanVao || 0)} VNĐ
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-slate-500">Chi phí thực hiện trong nước</span>
+                    <span className="text-sm font-semibold text-slate-900">
+                      {formatCurrency(contract.chiPhiThucHienTrongNuoc || 0)} VNĐ
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Liquidation & Handover */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-slate-900 flex items-center space-x-2">
+                  <span className="w-1 h-4 bg-purple-600 rounded-full"></span>
+                  <span>Thanh lý & Bàn giao</span>
+                </h3>
+                <div className="grid grid-cols-1 gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                  <div className="pb-2 border-b border-slate-50">
+                    <span className="text-xs text-slate-400 block mb-1">Số & Ngày biên bản thanh lý</span>
+                    <div className="flex justify-between">
+                      <span className="text-sm font-medium text-slate-900">{contract.soBienBanThanhLy || "-"}</span>
+                      <span className="text-sm text-slate-500">{formatDate(contract.ngayBienBanThanhLy)}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400 block mb-1">Số & Ngày biên bản bàn giao đồng bộ</span>
+                    <div className="flex justify-between">
+                      <span className="text-sm font-medium text-slate-900">{contract.soBienBanBanGiaoDongBo || "-"}</span>
+                      <span className="text-sm text-slate-500">{formatDate(contract.ngayBienBanBanGiaoDongBo)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Separator className="my-4" />
 
             {/* Progress Tree */}
             <ProgressTimeline
-              contractProgressSteps={contractProgressSteps}
-              canBo={canBo}
-              getLoaiTien={getCurrencyName}
-              contractId={contract.id}
+              contractProgressSteps={contractProgressSteps.map(step => ({
+                ...step,
+                id: step.id.toString(),
+                canBoPhuTrachId: step.canBoPhuTrachId?.toString(),
+                loaiTienId: step.loaiTienId?.toString()
+              })) as any}
+              canBo={(canBo as any[]).map(cb => ({
+                ...cb,
+                id: cb.id.toString()
+              })) as any}
+              getLoaiTien={getCurrencyName as any}
             />
 
             <Separator />
@@ -638,7 +848,7 @@ export default function ContractViewModal({
                       <p className="text-xl font-bold text-green-600">
                         {contractPayments
                           .reduce(
-                            (sum, p) =>
+                            (sum: number, p: any) =>
                               sum + (parseFloat(p.soTien || "0") || 0),
                             0
                           )
@@ -666,19 +876,18 @@ export default function ContractViewModal({
                             Lần thanh toán #{index + 1}
                           </h4>
                           <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              payment.daThanhToan
-                                ? "bg-green-100 text-green-800"
-                                : payment.isOverdue
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${payment.daThanhToan
+                              ? "bg-green-100 text-green-800"
+                              : payment.isOverdue
                                 ? "bg-red-100 text-red-800"
                                 : "bg-orange-100 text-orange-800"
-                            }`}
+                              }`}
                           >
                             {payment.daThanhToan
                               ? "Đã thanh toán"
                               : payment.isOverdue
-                              ? "Quá hạn"
-                              : "Chưa thanh toán"}
+                                ? "Quá hạn"
+                                : "Chưa thanh toán"}
                           </span>
                         </div>
 
@@ -931,9 +1140,8 @@ export default function ContractViewModal({
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-3">
                         <div
-                          className={`w-3 h-3 rounded-full ${
-                            payment.daThanhToan ? "bg-green-500" : "bg-red-500"
-                          }`}
+                          className={`w-3 h-3 rounded-full ${payment.daThanhToan ? "bg-green-500" : "bg-red-500"
+                            }`}
                         ></div>
                         <h4 className="font-medium">
                           {formatCurrency(payment.soTien || 0)}{" "}
@@ -978,11 +1186,255 @@ export default function ContractViewModal({
               )}
             </div>
             <CapTienTimeline
-              contractProgressSteps={contractProgressSteps}
-              canBo={canBo}
-              getLoaiTien={getCurrencyName}
+              getLoaiTien={getCurrencyName as any}
               contractId={contract.id}
             />
+          </TabsContent>
+
+          {/* Costs Tab */}
+          <TabsContent value="costs" className="space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold flex items-center">
+                  <DollarSign className="w-5 h-5 mr-2 text-red-600" />
+                  Chi phí thực tế
+                </h3>
+                <Button variant="outline" size="sm" onClick={() => exportCosts("actual")}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Xuất Excel
+                </Button>
+              </div>
+
+              {contractActualCosts.length === 0 ? (
+                <p className="text-sm text-slate-500 italic">Chưa có chi phí thực tế</p>
+              ) : (
+                <div className="border rounded-md">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Loại chi phí</TableHead>
+                        <TableHead>Ngày thực hiện</TableHead>
+                        <TableHead>Trị giá</TableHead>
+                        <TableHead>Ghi chú</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {contractActualCosts.map((c: any) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium">
+                            {costTypes.find((t: any) => t.id === c.loaiChiPhiId)?.tenLoai || "-"}
+                          </TableCell>
+                          <TableCell>{c.ngayThucHien ? new Date(c.ngayThucHien).toLocaleDateString("vi-VN") : "-"}</TableCell>
+                          <TableCell className="font-semibold text-red-600">{c.triGia?.toLocaleString()}</TableCell>
+                          <TableCell className="text-slate-500">{c.ghiChu || "-"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold flex items-center">
+                  <FileSpreadsheet className="w-5 h-5 mr-2 text-green-600" />
+                  Chi phí theo hợp đồng
+                </h3>
+                <Button variant="outline" size="sm" onClick={() => exportCosts("planned")}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Xuất Excel
+                </Button>
+              </div>
+
+              {contractPlannedCosts.length === 0 ? (
+                <p className="text-sm text-slate-500 italic">Chưa có chi phí theo hợp đồng</p>
+              ) : (
+                <div className="border rounded-md">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Loại chi phí</TableHead>
+                        <TableHead>Ngày thực hiện</TableHead>
+                        <TableHead>Trị giá</TableHead>
+                        <TableHead>Ghi chú</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {contractPlannedCosts.map((c: any) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium">
+                            {costTypes.find((t: any) => t.id === c.loaiChiPhiId)?.tenLoai || "-"}
+                          </TableCell>
+                          <TableCell>{c.ngayThucHien ? new Date(c.ngayThucHien).toLocaleDateString("vi-VN") : "-"}</TableCell>
+                          <TableCell className="font-semibold text-primary">{c.triGia?.toLocaleString()}</TableCell>
+                          <TableCell className="text-slate-500">{c.ghiChu || "-"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Bao Lanh Tab */}
+          <TabsContent value="bao-lanh" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Bảo lãnh hợp đồng</h3>
+            </div>
+
+            {contractBaoLanh.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">
+                <Shield className="w-12 h-12 mx-auto mb-2 text-slate-300" />
+                <p>Chưa có thông tin bảo lãnh</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {contractBaoLanh.map((item: any) => (
+                  <div
+                    key={item.id}
+                    className="border rounded-lg p-4 bg-white shadow-sm"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <Shield className="w-5 h-5 text-blue-500" />
+                        <h4 className="font-semibold text-slate-900">
+                          {item.soBaoLanh}
+                        </h4>
+                      </div>
+                      <Badge variant="outline">
+                        {loaiBaoLanh.find((l: any) => l.id === item.loaiBaoLanhId)
+                          ?.tenLoai || "Bảo lãnh"}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-slate-600">
+                      <div>
+                        <span className="font-medium text-slate-500">
+                          Trị giá:
+                        </span>{" "}
+                        {formatCurrency(item.triGia || 0)}
+                      </div>
+                      <div>
+                        <span className="font-medium text-slate-500">Tỷ lệ:</span>{" "}
+                        {item.tyLe}%
+                      </div>
+                      <div>
+                        <span className="font-medium text-slate-500">
+                          Ngày cấp:
+                        </span>{" "}
+                        {formatDate(item.ngayCap)}
+                      </div>
+                      <div>
+                        <span className="font-medium text-slate-500">
+                          Thời hạn:
+                        </span>{" "}
+                        {formatDate(item.thoiHan)}
+                      </div>
+                      <div className="md:col-span-2">
+                        <span className="font-medium text-slate-500">
+                          Người thụ hưởng:
+                        </span>{" "}
+                        {item.nguoiThuHuong}
+                      </div>
+                    </div>
+
+                    {item.fileScan && (
+                      <div className="mt-3 pt-3 border-t">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            window.open(item.fileScan, "_blank")
+                          }
+                        >
+                          <FileText className="w-4 h-4 mr-2" />
+                          Xem văn bản bảo lãnh
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Thu Tin Dung Tab */}
+          <TabsContent value="thu-tin-dung" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Thư tín dụng (L/C)</h3>
+            </div>
+
+            {contractThuTinDung.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">
+                <Stamp className="w-12 h-12 mx-auto mb-2 text-slate-300" />
+                <p>Chưa có thông tin thư tín dụng</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {contractThuTinDung.map((item: any) => (
+                  <div
+                    key={item.id}
+                    className="border rounded-lg p-4 bg-white shadow-sm"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <Stamp className="w-5 h-5 text-purple-500" />
+                        <h4 className="font-semibold text-slate-900">
+                          L/C số: {item.soLc}
+                        </h4>
+                      </div>
+                      <span className="text-xs text-slate-500 italic">
+                        Ngày mở: {formatDate(item.ngayMo)}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-slate-600">
+                      <div>
+                        <span className="font-medium text-slate-500">
+                          Trị giá:
+                        </span>{" "}
+                        {formatCurrency(item.triGia || 0)}
+                      </div>
+                      <div>
+                        <span className="font-medium text-slate-500">Tỷ giá:</span>{" "}
+                        {item.tyGia}
+                      </div>
+                      <div>
+                        <span className="font-medium text-slate-500">
+                          Thời hạn:
+                        </span>{" "}
+                        {formatDate(item.thoiHan)}
+                      </div>
+                      <div className="md:col-span-2">
+                        <span className="font-medium text-slate-500">
+                          Người thụ hưởng:
+                        </span>{" "}
+                        {item.nguoiThuHuong}
+                      </div>
+                    </div>
+
+                    {item.fileScan && (
+                      <div className="mt-3 pt-3 border-t">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            window.open(item.fileScan, "_blank")
+                          }
+                        >
+                          <FileText className="w-4 h-4 mr-2" />
+                          Xem văn bản L/C
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           {/* Files Tab */}
@@ -1068,6 +1520,7 @@ export default function ContractViewModal({
                           <FormControl>
                             <Textarea
                               {...field}
+                              value={field.value ?? ""}
                               placeholder="Mô tả về tài liệu..."
                             />
                           </FormControl>
@@ -1174,14 +1627,14 @@ export default function ContractViewModal({
                             {file.loaiFile?.includes("image/")
                               ? "Hình ảnh"
                               : file.loaiFile?.includes("pdf")
-                              ? "PDF"
-                              : file.loaiFile?.includes("word") ||
-                                file.loaiFile?.includes("document")
-                              ? "Word"
-                              : file.loaiFile?.includes("sheet") ||
-                                file.loaiFile?.includes("excel")
-                              ? "Excel"
-                              : "File"}
+                                ? "PDF"
+                                : file.loaiFile?.includes("word") ||
+                                  file.loaiFile?.includes("document")
+                                  ? "Word"
+                                  : file.loaiFile?.includes("sheet") ||
+                                    file.loaiFile?.includes("excel")
+                                    ? "Excel"
+                                    : "File"}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -1226,13 +1679,13 @@ export default function ContractViewModal({
           {/* Reception Tab */}
           <TabsContent value="reception" className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Tiếp nhận</h3>
+              <h3 className="text-lg font-semibold">Nhập/Xuất</h3>
             </div>
 
             {reception.length === 0 ? (
               <div className="text-center py-8 text-slate-500">
                 <Package className="w-12 h-12 mx-auto mb-2 text-slate-300" />
-                <p>Chưa có thông tin tiếp nhận</p>
+                <p>Chưa có dữ liệu Nhập/Xuất</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -1253,35 +1706,21 @@ export default function ContractViewModal({
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 text-sm text-slate-600">
-                      <div>
-                        <span className="font-medium">Số tờ khai:</span>{" "}
-                        {item.soToKhai || "—"}
-                      </div>
-                      <div>
-                        <span className="font-medium">Số vận đơn:</span>{" "}
-                        {item.soVanDon || "—"}
-                      </div>
-                      <div>
-                        <span className="font-medium">Số phiếu đóng gói:</span>{" "}
-                        {item.soPhieuDongGoi || "—"}
-                      </div>
-                      <div>
-                        <span className="font-medium">Số hóa đơn:</span>{" "}
-                        {item.soHoaDon || "—"}
-                      </div>
-                      <div>
-                        <span className="font-medium">Số bảo hiểm:</span>{" "}
-                        {item.soBaoHiem || "—"}
-                      </div>
-                      <div>
-                        <span className="font-medium">
-                          Địa điểm thông quan:
-                        </span>{" "}
-                        {item.diaDiemThongQuanId
-                          ? `Mã ${item.diaDiemThongQuanId}`
-                          : "—"}
-                      </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-slate-600">
+                      <div><span className="font-medium text-slate-500">Hình thức:</span> <Badge variant="outline">{item.hinhThuc || "—"}</Badge></div>
+                      <div><span className="font-medium text-slate-500">Số tờ khai:</span> {item.soToKhai || "—"}</div>
+                      <div><span className="font-medium text-slate-500">Số vận đơn:</span> {item.soVanDon || "—"}</div>
+                      <div><span className="font-medium text-slate-500">Số phiếu đóng gói:</span> {item.soPhieuDongGoi || "—"}</div>
+                      <div><span className="font-medium text-slate-500">Số hóa đơn:</span> {item.soHoaDon || "—"}</div>
+                      <div><span className="font-medium text-slate-500">Số bảo hiểm:</span> {item.soBaoHiem || "—"}</div>
+                      <div><span className="font-medium text-slate-500">Mã HS Code:</span> {item.maHsCode || "—"}</div>
+                      <div><span className="font-medium text-slate-500">Địa điểm thông quan:</span> {item.diaDiemThongQuanTuDo || (item.diaDiemThongQuanId ? `Mã ${item.diaDiemThongQuanId}` : "—")}</div>
+                      <div><span className="font-medium text-slate-500">Số giấy phép:</span> {item.soGiayPhep || "—"}</div>
+                      <div><span className="font-medium text-slate-500">Thời hạn giấy phép:</span> {formatDate(item.thoiHanGiayPhep)}</div>
+                      <div><span className="font-medium text-slate-500">Hải quan đặc biệt:</span> {item.soHaiQuanDacBiet || "—"}</div>
+                      <div><span className="font-medium text-slate-500">Thông báo miễn thuế:</span> {item.soThongBaoMienThue || "—"}</div>
+                      <div><span className="font-medium text-slate-500">Biên bản bàn giao:</span> {item.soBienBanBanGiao || "—"}</div>
+                      <div><span className="font-medium text-slate-500">Ngày bàn giao:</span> {formatDate(item.ngayBanGiao)}</div>
                     </div>
                   </div>
                 ))}

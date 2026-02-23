@@ -125,22 +125,23 @@ export default function CapTienPage() {
     // Nhóm các CapTien theo soHdNgoai
     const groupedByContract = filteredCapTien.reduce((acc, capTien) => {
       const contract = contracts.find((c) => c.id === capTien.hopDongId);
-      if (contract) {
-        if (!acc[contract.soHdNgoai]) {
-          acc[contract.soHdNgoai] = {
-            contract: contract.soHdNgoai,
+      if (contract && contract.soHdNgoai) {
+        const key = contract.soHdNgoai;
+        if (!acc[key]) {
+          acc[key] = {
+            contract: key,
             records: [],
             chuDauTuId: contract.chuDauTuId,
             canBoId: contract.canBoId,
             tenHopDong: contract.ten, // Thêm tên hợp đồng vào
           };
         }
-        acc[contract.soHdNgoai].records.push(capTien);
+        acc[key].records.push(capTien);
       }
       return acc;
-    }, {} as Record<string, { contract: string; records: CapTien[]; chuDauTuId: number; canBoId: number; tenHopDong: string }>);
+    }, {} as Record<string, { contract: string; records: CapTien[]; chuDauTuId: number | null; canBoId: number | null; tenHopDong: string }>);
 
-    const rows = [];
+    const rows: any[] = [];
 
     // Duyệt qua các hợp đồng đã nhóm
     for (const contractId in groupedByContract) {
@@ -162,7 +163,9 @@ export default function CapTienPage() {
           "Ngày cấp": formatDate(record.ngayCap),
           "Số tiền": record.soTien + getCurrencyName(record.loaiTienId),
           "Tỷ giá": record.tyGia ?? "-",
-          "Ghi chú": record.ghiChu,
+          "Bên cấp": record.benCap || "-",
+          "Số tiền quy đổi": record.soTienQuyDoi || "-",
+          "Loại tiền quy đổi": record.loaiTienQuyDoi || "-",
           "Tên Hợp đồng": idx === 0 ? tenHopDong : "", // Hiển thị tên hợp đồng chỉ 1 lần
           "Tên Chủ đầu tư": idx === 0 ? chuDauTuName : "", // Hiển thị tên chủ đầu tư chỉ 1 lần
           "Tên Cán bộ": idx === 0 ? canBoName : "", // Hiển thị tên cán bộ chỉ 1 lần
@@ -189,7 +192,7 @@ export default function CapTienPage() {
         <Header
           title="Quản lý cấp tiền"
           subtitle="Theo dõi các lần cấp tiền trong hợp đồng"
-          onCreateContract={() => {}}
+          onCreateContract={() => { }}
         />
         <main className="flex-1 overflow-auto p-6">
           <Card>
@@ -228,6 +231,8 @@ export default function CapTienPage() {
                         <TableHead>Tên Hợp đồng</TableHead>{" "}
                         {/* Cột tên hợp đồng */}
                         <TableHead>Số tiền</TableHead>
+                        <TableHead>Bên cấp</TableHead>
+                        <TableHead>Quy đổi</TableHead>
                         <TableHead>Tỷ giá</TableHead>
                         <TableHead>Ghi chú</TableHead>
                         <TableHead></TableHead>
@@ -264,6 +269,10 @@ export default function CapTienPage() {
                           <TableCell>
                             {record.soTien} {getCurrencyName(record.loaiTienId)}
                           </TableCell>
+                          <TableCell>{record.benCap || "-"}</TableCell>
+                          <TableCell>
+                            {record.soTienQuyDoi ? `${record.soTienQuyDoi} ${record.loaiTienQuyDoi}` : "-"}
+                          </TableCell>
                           <TableCell>{record.tyGia ?? "-"}</TableCell>
                           <TableCell>{record.ghiChu}</TableCell>
                           <TableCell>
@@ -296,8 +305,8 @@ export default function CapTienPage() {
                                 const newSelected = e.target.checked
                                   ? [...selectedContracts, record.hopDongId]
                                   : selectedContracts.filter(
-                                      (id) => id !== record.hopDongId
-                                    );
+                                    (id) => id !== record.hopDongId
+                                  );
                                 setSelectedContracts(newSelected);
                               }}
                             />

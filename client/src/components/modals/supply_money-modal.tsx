@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { insertCapTienSchema, CapTien } from "@shared/schema";
+import { insertCapTienSchema, CapTien, InsertCapTien } from "@shared/schema";
 
 interface CapTienModalProps {
   isOpen: boolean;
@@ -48,11 +48,11 @@ export default function CapTienModal({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: contracts = [] } = useQuery({
+  const { data: contracts = [] } = useQuery<any[]>({
     queryKey: ["/api/hop-dong"],
   });
 
-  const { data: loaiTien = [] } = useQuery({
+  const { data: loaiTien = [] } = useQuery<any[]>({
     queryKey: ["/api/loai-tien"],
   });
 
@@ -60,21 +60,27 @@ export default function CapTienModal({
     resolver: zodResolver(insertCapTienSchema),
     defaultValues: record
       ? {
-          ngayCap: record.ngayCap || "",
-          hopDongId: record.hopDongId,
-          soTien: record.soTien,
-          loaiTienId: record.loaiTienId,
-          tyGia: record.tyGia ?? null,
-          ghiChu: record.ghiChu || "",
-        }
+        ngayCap: record.ngayCap || "",
+        hopDongId: record.hopDongId,
+        soTien: record.soTien,
+        loaiTienId: record.loaiTienId,
+        tyGia: record.tyGia ?? null,
+        ghiChu: record.ghiChu || "",
+        benCap: record.benCap || "",
+        soTienQuyDoi: record.soTienQuyDoi || 0,
+        loaiTienQuyDoi: record.loaiTienQuyDoi || "VND",
+      }
       : {
-          ngayCap: "",
-          hopDongId: 0,
-          soTien: 0,
-          loaiTienId: 3, // default VND
-          tyGia: null,
-          ghiChu: "",
-        },
+        ngayCap: "",
+        hopDongId: 0,
+        soTien: 0,
+        loaiTienId: 3, // default VND
+        tyGia: null,
+        ghiChu: "",
+        benCap: "",
+        soTienQuyDoi: 0,
+        loaiTienQuyDoi: "VND",
+      },
   });
 
   const createOrUpdateMutation = useMutation({
@@ -117,8 +123,8 @@ export default function CapTienModal({
             {mode === "view"
               ? "Xem chi tiết cấp tiền"
               : mode === "edit"
-              ? "Chỉnh sửa cấp tiền"
-              : "Thêm cấp tiền mới"}
+                ? "Chỉnh sửa cấp tiền"
+                : "Thêm cấp tiền mới"}
           </DialogTitle>
         </DialogHeader>
 
@@ -241,6 +247,7 @@ export default function CapTienModal({
                       type="number"
                       step="0.01"
                       {...field}
+                      value={field.value === null || field.value === undefined ? "" : field.value}
                       onChange={(e) => {
                         const v = parseFloat(e.target.value);
                         field.onChange(isNaN(v) ? null : v);
@@ -264,6 +271,7 @@ export default function CapTienModal({
                     <Textarea
                       placeholder="Nhập ghi chú..."
                       {...field}
+                      value={field.value === null || field.value === undefined ? "" : field.value}
                       disabled={mode === "view"}
                     />
                   </FormControl>
@@ -271,6 +279,81 @@ export default function CapTienModal({
                 </FormItem>
               )}
             />
+
+            <div className="md:col-span-2 border-t pt-2 mt-2">
+              <h4 className="text-sm font-semibold text-rose-600 mb-4">Thông tin bổ sung</h4>
+              <div className="grid grid-cols-2 gap-4">
+                {/* Bên cấp */}
+                <FormField
+                  control={form.control}
+                  name="benCap"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bên cấp</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Nhập tên bên cấp..."
+                          {...field}
+                          value={field.value === null || field.value === undefined ? "" : field.value}
+                          disabled={mode === "view"}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Số tiền quy đổi */}
+                <FormField
+                  control={form.control}
+                  name="soTienQuyDoi"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Số tiền quy đổi</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="any"
+                          {...field}
+                          value={field.value === null || field.value === undefined ? 0 : field.value}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                          disabled={mode === "view"}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Loại tiền quy đổi */}
+                <FormField
+                  control={form.control}
+                  name="loaiTienQuyDoi"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Loại tiền quy đổi</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value ?? "VNĐ"}
+                        disabled={mode === "view"}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Chọn loại tiền" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="VNĐ">VNĐ</SelectItem>
+                          <SelectItem value="USD">USD</SelectItem>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
 
             <div className="flex justify-end space-x-2 pt-4">
               <Button type="button" variant="outline" onClick={onClose}>
@@ -284,8 +367,8 @@ export default function CapTienModal({
                   {createOrUpdateMutation.isPending
                     ? "Đang lưu..."
                     : record
-                    ? "Cập nhật"
-                    : "Tạo mới"}
+                      ? "Cập nhật"
+                      : "Tạo mới"}
                 </Button>
               )}
             </div>

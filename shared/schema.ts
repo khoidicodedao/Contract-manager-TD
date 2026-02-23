@@ -135,6 +135,14 @@ export const hopDong = sqliteTable("hop_dong", {
   hinhThucGiaoHang: text("hinh_thuc_giao_hang"),
   thuTruongPhuTrach: text("thu_truong_phu_trach"),
   soLanGiaoHang: integer("so_lan_giao_hang"),
+  tongHanMucNganSach: real("tong_han_muc_ngan_sach"),
+  loaiTienTongHanMuc: text("loai_tien_tong_han_muc"),
+  chiPhiDoanRaDoanVao: real("chi_phi_doan_ra_doan_vao"),
+  chiPhiThucHienTrongNuoc: real("chi_phi_thuc_hien_trong_nuoc"),
+  soBienBanThanhLy: text("so_bien_ban_thanh_ly"),
+  ngayBienBanThanhLy: text("ngay_bien_ban_thanh_ly"),
+  soBienBanBanGiaoDongBo: text("so_bien_ban_ban_giao_dong_bo"),
+  ngayBienBanBanGiaoDongBo: text("ngay_bien_ban_ban_giao_dong_bo"),
 });
 
 // Trang bị
@@ -174,11 +182,20 @@ export const tiepNhan = sqliteTable("tiep_nhan", {
   soHoaDon: text("so_hoa_don"),
   soBaoHiem: text("so_bao_hiem"),
   diaDiemThongQuanId: integer("dia_diem_thong_quan_id"),
+  diaDiemThongQuanTuDo: text("dia_diem_thong_quan_tu_do"),
   ngayThucHien: text("ngay_thuc_hien"),
   dieuKienGiaoHangId: integer("dieu_kien_giao_hang_id"),
   trongLuong: real("trong_luong"),
   soKien: real("so_kien"),
   giaTriHoaDon: real("gia_tri_hoa_don"),
+  hinhThuc: text("hinh_thuc"), // Import or Export
+  soGiayPhep: text("so_giay_phep"),
+  thoiHanGiayPhep: text("thoi_han_giay_phep"),
+  soHaiQuanDacBiet: text("so_hai_quan_dac_biet"),
+  soThongBaoMienThue: text("so_thong_bao_mien_thue"),
+  soBienBanBanGiao: text("so_bien_ban_ban_giao"),
+  ngayBanGiao: text("ngay_ban_giao"),
+  maHsCode: text("ma_hs_code"),
 });
 
 // Thanh toán
@@ -256,6 +273,121 @@ export const capTien = sqliteTable("cap_tien", {
   loaiTienId: integer("loai_tien_id").notNull(),
   tyGia: real("ty_gia"),
   ghiChu: text("ghi_chu"),
+  benCap: text("ben_cap"),
+  soTienQuyDoi: real("so_tien_quy_doi"),
+  loaiTienQuyDoi: text("loai_tien_quy_doi"),
+});
+
+// Loại hóa đơn
+export const loaiHoaDon = sqliteTable("loai_hoa_don", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ten: text("ten").notNull(),
+  ghiChu: text("ghi_chu"),
+});
+
+// Hóa đơn
+export const hoaDon = sqliteTable("hoa_don", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  loaiHoaDonId: integer("loai_hoa_don_id").notNull(),
+  tenHoaDon: text("ten_hoa_don").notNull(),
+  ngayHoaDon: text("ngay_hoa_don"),
+  triGia: real("tri_gia"),
+  loaiTienId: integer("loai_tien_id"),
+  tyGia: real("ty_gia"),
+  ghiChu: text("ghi_chu"),
+  hopDongId: integer("hop_dong_id"),
+});
+
+export const loaiVanBanPhapLy = sqliteTable("loai_van_ban_phap_ly", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  hopDongId: integer("hop_dong_id"),
+  tenLoaiPhapLy: text("ten_loai_phap_ly").notNull(),
+  ghiChu: text("ghi_chu"),
+});
+
+export const vanBanPhapLy = sqliteTable("van_ban_phap_ly", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  loaiVanBanId: integer("loai_van_ban_id").notNull(),
+  hopDongId: integer("hop_dong_id").notNull(),
+  tenVanBan: text("ten_van_ban").notNull(),
+  ngayVanBan: text("ngay_van_ban"),
+  ghiChu: text("ghi_chu"),
+});
+
+export const loaiDoanRaVao = sqliteTable("loai_doan_ra_vao", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  tenLoai: text("ten_loai").notNull(),
+  phanLoai: text("phan_loai").notNull(), // "đoàn ra" or "đoàn vào"
+  ghiChu: text("ghi_chu"),
+});
+
+export const doanRaVao = sqliteTable("doan_ra_vao", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  loaiDoanId: integer("loai_doan_id").notNull(),
+  tenDoan: text("ten_doan").notNull(),
+  hopDongId: integer("hop_dong_id").notNull(),
+  chiPhi: real("chi_phi"),
+  tyGia: real("ty_gia"),
+  ghiChu: text("ghi_chu"),
+});
+
+export const loaiBaoLanh = sqliteTable("loai_bao_lanh", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  tenLoai: text("ten_loai").notNull(),
+  ghiChu: text("ghi_chu"),
+});
+
+export const baoLanh = sqliteTable("bao_lanh", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  hopDongId: integer("hop_dong_id").notNull(),
+  soBaoLanh: text("so_bao_lanh"),
+  loaiBaoLanhId: integer("loai_bao_lanh_id"),
+  triGia: real("tri_gia"),
+  tyGia: real("ty_gia"),
+  tyLe: real("ty_le"),
+  nguoiThuHuong: text("nguoi_thu_huong"),
+  ngayCap: text("ngay_cap"),
+  thoiHan: text("thoi_han"),
+  ghiChu: text("ghi_chu"),
+  fileScan: text("file_scan"),
+});
+
+export const thuTinDung = sqliteTable("thu_tin_dung", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  hopDongId: integer("hop_dong_id").notNull(),
+  soLc: text("so_lc"),
+  ngayMo: text("ngay_mo"),
+  triGia: real("tri_gia"),
+  tyGia: real("ty_gia"),
+  thoiHan: text("thoi_han"),
+  nguoiThuHuong: text("nguoi_thu_huong"),
+  ghiChu: text("ghi_chu"),
+  fileScan: text("file_scan"),
+});
+
+export const loaiChiPhi = sqliteTable("loai_chi_phi", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  maLoai: text("ma_loai"),
+  tenLoai: text("ten_loai").notNull(),
+  ghiChu: text("ghi_chu"),
+});
+
+export const chiPhiThucTe = sqliteTable("chi_phi_thuc_te", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  hopDongId: integer("hop_dong_id").notNull(),
+  loaiChiPhiId: integer("loai_chi_phi_id").notNull(),
+  ngayThucHien: text("ngay_thuc_hien"),
+  triGia: real("tri_gia"),
+  ghiChu: text("ghi_chu"),
+});
+
+export const chiPhiTheoHopDong = sqliteTable("chi_phi_theo_hop_dong", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  hopDongId: integer("hop_dong_id").notNull(),
+  loaiChiPhiId: integer("loai_chi_phi_id").notNull(),
+  ngayThucHien: text("ngay_thuc_hien"),
+  triGia: real("tri_gia"),
+  ghiChu: text("ghi_chu"),
 });
 
 export type InsertCapTien = typeof capTien.$inferInsert;
@@ -267,6 +399,9 @@ export const insertCapTienSchema = z.object({
   loaiTienId: z.number().int().min(1, "Loại tiền bắt buộc"),
   tyGia: z.number().nullable().optional(),
   ghiChu: z.string().optional(),
+  benCap: z.string().optional(),
+  soTienQuyDoi: z.number().optional(),
+  loaiTienQuyDoi: z.string().optional(),
 });
 
 export const updateCapTienSchema = insertCapTienSchema.partial();
@@ -340,12 +475,23 @@ export const insertHopDongTienDoSchema = createInsertSchema(hopDongTienDo).omit(
 );
 export const insertFileHopDongSchema = createInsertSchema(fileHopDong).omit({
   id: true,
-  ngayTaiLen: true,
 });
 export const insertBuocThucHienSchema = createInsertSchema(buocThucHien).omit({
   id: true,
 });
 export const updateBuocThucHienSchema = createInsertSchema(buocThucHien).omit({
+  id: true,
+});
+export const insertLoaiHoaDonSchema = createInsertSchema(loaiHoaDon).omit({
+  id: true,
+});
+export const insertHoaDonSchema = createInsertSchema(hoaDon).omit({
+  id: true,
+});
+export const insertLoaiVanBanPhapLySchema = createInsertSchema(
+  loaiVanBanPhapLy
+).omit({ id: true });
+export const insertVanBanPhapLySchema = createInsertSchema(vanBanPhapLy).omit({
   id: true,
 });
 
@@ -378,6 +524,35 @@ export type InsertThanhToan = z.infer<typeof insertThanhToanSchema>;
 export type InsertHopDongTienDo = z.infer<typeof insertHopDongTienDoSchema>;
 export type InsertFileHopDong = z.infer<typeof insertFileHopDongSchema>;
 export type InsertBuocThucHien = z.infer<typeof insertBuocThucHienSchema>;
+export type InsertLoaiHoaDon = z.infer<typeof insertLoaiHoaDonSchema>;
+export type InsertHoaDon = z.infer<typeof insertHoaDonSchema>;
+export type InsertLoaiVanBanPhapLy = z.infer<
+  typeof insertLoaiVanBanPhapLySchema
+>;
+export type InsertVanBanPhapLy = z.infer<typeof insertVanBanPhapLySchema>;
+export const insertLoaiDoanRaVaoSchema = createInsertSchema(loaiDoanRaVao).omit({ id: true });
+export type InsertLoaiDoanRaVao = z.infer<typeof insertLoaiDoanRaVaoSchema>;
+
+export const insertDoanRaVaoSchema = createInsertSchema(doanRaVao).omit({ id: true });
+export type InsertDoanRaVao = z.infer<typeof insertDoanRaVaoSchema>;
+
+export const insertLoaiBaoLanhSchema = createInsertSchema(loaiBaoLanh).omit({ id: true });
+export type InsertLoaiBaoLanh = z.infer<typeof insertLoaiBaoLanhSchema>;
+
+export const insertBaoLanhSchema = createInsertSchema(baoLanh).omit({ id: true });
+export type InsertBaoLanh = z.infer<typeof insertBaoLanhSchema>;
+
+export const insertThuTinDungSchema = createInsertSchema(thuTinDung).omit({ id: true });
+export type InsertThuTinDung = z.infer<typeof insertThuTinDungSchema>;
+
+export const insertLoaiChiPhiSchema = createInsertSchema(loaiChiPhi).omit({ id: true });
+export type InsertLoaiChiPhi = z.infer<typeof insertLoaiChiPhiSchema>;
+
+export const insertChiPhiThucTeSchema = createInsertSchema(chiPhiThucTe).omit({ id: true });
+export type InsertChiPhiThucTe = z.infer<typeof insertChiPhiThucTeSchema>;
+
+export const insertChiPhiTheoHopDongSchema = createInsertSchema(chiPhiTheoHopDong).omit({ id: true });
+export type InsertChiPhiTheoHopDong = z.infer<typeof insertChiPhiTheoHopDongSchema>;
 
 export type LoaiHopDong = typeof loaiHopDong.$inferSelect;
 export type CanBo = typeof canBo.$inferSelect;
@@ -402,3 +577,15 @@ export type HopDongTienDo = typeof hopDongTienDo.$inferSelect;
 export type FileHopDong = typeof fileHopDong.$inferSelect;
 export type BuocThucHien = typeof buocThucHien.$inferSelect;
 export type CapTien = typeof capTien.$inferSelect;
+export type LoaiHoaDon = typeof loaiHoaDon.$inferSelect;
+export type HoaDon = typeof hoaDon.$inferSelect;
+export type LoaiVanBanPhapLy = typeof loaiVanBanPhapLy.$inferSelect;
+export type VanBanPhapLy = typeof vanBanPhapLy.$inferSelect;
+export type LoaiDoanRaVao = typeof loaiDoanRaVao.$inferSelect;
+export type DoanRaVao = typeof doanRaVao.$inferSelect;
+export type LoaiBaoLanh = typeof loaiBaoLanh.$inferSelect;
+export type BaoLanh = typeof baoLanh.$inferSelect;
+export type ThuTinDung = typeof thuTinDung.$inferSelect;
+export type LoaiChiPhi = typeof loaiChiPhi.$inferSelect;
+export type ChiPhiThucTe = typeof chiPhiThucTe.$inferSelect;
+export type ChiPhiTheoHopDong = typeof chiPhiTheoHopDong.$inferSelect;

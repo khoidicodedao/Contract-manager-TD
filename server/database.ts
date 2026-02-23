@@ -106,7 +106,15 @@ function createTables() {
       thu_truong_phu_trach TEXT,
       so_lan_giao_hang INTEGER,
       hinh_thuc_hop_dong TEXT,
-      hinh_thuc_giao_hang TEXT
+      hinh_thuc_giao_hang TEXT,
+      tong_han_muc_ngan_sach REAL,
+      loai_tien_tong_han_muc TEXT,
+      chi_phi_doan_ra_doan_vao REAL,
+      chi_phi_thuc_hien_trong_nuoc REAL,
+      so_bien_ban_thanh_ly TEXT,
+      ngay_bien_ban_thanh_ly TEXT,
+      so_bien_ban_ban_giao_dong_bo TEXT,
+      ngay_bien_ban_ban_giao_dong_bo TEXT
     );
     
     CREATE TABLE IF NOT EXISTS trang_bi (
@@ -131,7 +139,10 @@ function createTables() {
   so_tien REAL NOT NULL,               
   loai_tien_id INTEGER NOT NULL,      
   ty_gia REAL,                         
-  ghi_chu TEXT,                       
+  ghi_chu TEXT,
+  ben_cap TEXT,
+  so_tien_quy_doi REAL,
+  loai_tien_quy_doi TEXT,
   FOREIGN KEY (hop_dong_id) REFERENCES hop_dong(id),
   FOREIGN KEY (loai_tien_id) REFERENCES loai_tien(id)
 );
@@ -210,8 +221,16 @@ function createTables() {
       trong_luong REAL,
       so_kien REAL,
       gia_tri_hoa_don REAL,
+      hinh_thuc TEXT,
+      so_giay_phep TEXT,
+      thoi_han_giay_phep TEXT,
+      so_hai_quan_dac_biet TEXT,
+      so_thong_bao_mien_thue TEXT,
+      so_bien_ban_ban_giao TEXT,
+      ngay_ban_giao TEXT,
+      ma_hs_code TEXT,
       FOREIGN KEY (hop_dong_id) REFERENCES hop_dong(id),
-      FOREIGN KEY (dia_diem_thong_quan_id) REFERENCES dia_diem_thong_quan(id)
+      FOREIGN KEY (dia_diem_thong_quan_id) REFERENCES dia_diem_thong_quan(id),
       FOREIGN KEY (dieu_kien_giao_hang_id) REFERENCES dieu_kien_giao_hang(id)
     );
     
@@ -225,7 +244,201 @@ function createTables() {
     ten TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS loai_hoa_don (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ten TEXT NOT NULL,
+      ghi_chu TEXT
+    );
+    
+    CREATE TABLE IF NOT EXISTS hoa_don (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      loai_hoa_don_id INTEGER NOT NULL,
+      ten_hoa_don TEXT NOT NULL,
+      ngay_hoa_don TEXT,
+      tri_gia REAL,
+      loai_tien_id INTEGER,
+      ty_gia REAL,
+      ghi_chu TEXT,
+      hop_dong_id INTEGER,
+      FOREIGN KEY (loai_hoa_don_id) REFERENCES loai_hoa_don(id),
+      FOREIGN KEY (loai_tien_id) REFERENCES loai_tien(id),
+      FOREIGN KEY (hop_dong_id) REFERENCES hop_dong(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS loai_bao_lanh (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ten_loai TEXT NOT NULL,
+      ghi_chu TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS bao_lanh (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      hop_dong_id INTEGER NOT NULL,
+      so_bao_lanh TEXT,
+      loai_bao_lanh_id INTEGER,
+      tri_gia REAL,
+      ty_gia REAL,
+      ty_le REAL,
+      nguoi_thu_huong TEXT,
+      ngay_cap TEXT,
+      thoi_han TEXT,
+      ghi_chu TEXT,
+      file_scan TEXT,
+      FOREIGN KEY (hop_dong_id) REFERENCES hop_dong(id),
+      FOREIGN KEY (loai_bao_lanh_id) REFERENCES loai_bao_lanh(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS thu_tin_dung (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      hop_dong_id INTEGER NOT NULL,
+      so_lc TEXT,
+      ngay_mo TEXT,
+      tri_gia REAL,
+      ty_gia REAL,
+      thoi_han TEXT,
+      nguoi_thu_huong TEXT,
+      ghi_chu TEXT,
+      file_scan TEXT,
+      FOREIGN KEY (hop_dong_id) REFERENCES hop_dong(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS loai_van_ban_phap_ly (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      hop_dong_id INTEGER,
+      ten_loai_phap_ly TEXT NOT NULL,
+      ghi_chu TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS van_ban_phap_ly (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      loai_van_ban_id INTEGER NOT NULL,
+      hop_dong_id INTEGER NOT NULL,
+      ten_van_ban TEXT NOT NULL,
+      ngay_van_ban TEXT,
+      ghi_chu TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS loai_doan_ra_vao (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ten_loai TEXT NOT NULL,
+      phan_loai TEXT NOT NULL,
+      ghi_chu TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS doan_ra_vao (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      loai_doan_id INTEGER NOT NULL,
+      ten_doan TEXT NOT NULL,
+      hop_dong_id INTEGER NOT NULL,
+      chi_phi REAL,
+      loai_tien_id INTEGER,
+      ty_gia REAL,
+      ghi_chu TEXT,
+      FOREIGN KEY (hop_dong_id) REFERENCES hop_dong(id),
+      FOREIGN KEY (loai_tien_id) REFERENCES loai_tien(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS loai_chi_phi (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ma_loai TEXT,
+      ten_loai TEXT NOT NULL,
+      ghi_chu TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS chi_phi_thuc_te (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      hop_dong_id INTEGER NOT NULL,
+      loai_chi_phi_id INTEGER NOT NULL,
+      ngay_thuc_hien TEXT,
+      tri_gia REAL,
+      ghi_chu TEXT,
+      FOREIGN KEY (hop_dong_id) REFERENCES hop_dong(id),
+      FOREIGN KEY (loai_chi_phi_id) REFERENCES loai_chi_phi(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS chi_phi_theo_hop_dong (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      hop_dong_id INTEGER NOT NULL,
+      loai_chi_phi_id INTEGER NOT NULL,
+      ngay_thuc_hien TEXT,
+      tri_gia REAL,
+      ghi_chu TEXT,
+      FOREIGN KEY (hop_dong_id) REFERENCES hop_dong(id),
+      FOREIGN KEY (loai_chi_phi_id) REFERENCES loai_chi_phi(id)
+    );
   `);
+}
+
+// Helper to add missing columns to hop_dong table
+function addMissingColumns() {
+  const columnsToAdd = [
+    { name: "thu_truong_phuTrach", type: "TEXT" },
+    { name: "so_lan_giao_hang", type: "INTEGER" },
+    { name: "hinh_thuc_hop_dong", type: "TEXT" },
+    { name: "hinh_thuc_giao_hang", type: "TEXT" },
+    { name: "tong_han_muc_ngan_sach", type: "REAL" },
+    { name: "loai_tien_tong_han_muc", type: "TEXT" },
+    { name: "chi_phi_doan_ra_doan_vao", type: "REAL" },
+    { name: "chi_phi_thuc_hien_trong_nuoc", type: "REAL" },
+    { name: "so_bien_ban_thanh_ly", type: "TEXT" },
+    { name: "ngay_bien_ban_thanh_ly", type: "TEXT" },
+    { name: "so_bien_ban_ban_giao_dong_bo", type: "TEXT" },
+    { name: "ngay_bien_ban_ban_giao_dong_bo", type: "TEXT" }
+  ];
+
+  const tiepNhanColumns = [
+    { name: "hinh_thuc", type: "TEXT" },
+    { name: "so_giay_phep", type: "TEXT" },
+    { name: "thoi_han_giay_phep", type: "TEXT" },
+    { name: "so_hai_quan_dac_biet", type: "TEXT" },
+    { name: "so_thong_bao_mien_thue", type: "TEXT" },
+    { name: "so_bien_ban_ban_giao", type: "TEXT" },
+    { name: "ngay_ban_giao", type: "TEXT" },
+    { name: "ma_hs_code", type: "TEXT" },
+  ];
+
+  columnsToAdd.forEach((col) => {
+    try {
+      sqlite.exec(`ALTER TABLE hop_dong ADD COLUMN ${col.name} ${col.type}`);
+      console.log(`Added column ${col.name} to hop_dong table`);
+    } catch (e) {
+      // Column might already exist
+    }
+  });
+
+  tiepNhanColumns.forEach((col) => {
+    try {
+      sqlite.exec(`ALTER TABLE tiep_nhan ADD COLUMN ${col.name} ${col.type}`);
+      console.log(`Added column ${col.name} to tiep_nhan table`);
+    } catch (e) {
+      // Column might already exist
+    }
+  });
+
+  const capTienColumns = [
+    { name: "ben_cap", type: "TEXT" },
+    { name: "so_tien_quy_doi", type: "REAL" },
+    { name: "loai_tien_quy_doi", type: "TEXT" },
+  ];
+
+  capTienColumns.forEach((col) => {
+    try {
+      sqlite.exec(`ALTER TABLE cap_tien ADD COLUMN ${col.name} ${col.type}`);
+      console.log(`Added column ${col.name} to cap_tien table`);
+    } catch (e) {
+      // Column might already exist
+    }
+  });
+
+  try {
+    sqlite.exec(`ALTER TABLE bao_lanh ADD COLUMN file_scan TEXT`);
+    console.log(`Added column file_scan to bao_lanh table`);
+  } catch (e) { }
+
+  try {
+    sqlite.exec(`ALTER TABLE thu_tin_dung ADD COLUMN file_scan TEXT`);
+    console.log(`Added column file_scan to thu_tin_dung table`);
+  } catch (e) { }
 }
 
 // Initialize database with sample data
@@ -234,6 +447,9 @@ export async function initializeDatabase() {
 
   // Create tables first
   createTables();
+
+  // Migrate schema for existing tables
+  addMissingColumns();
 
   // Check if data already exists
   try {
@@ -335,6 +551,21 @@ export async function initializeDatabase() {
     { trangThai: 1 }, // Đang thực hiện
     { trangThai: 2 }, // Chưa thực hiện
     { trangThai: 3 }, // Đã thanh lý
+  ]);
+
+  // Insert invoice types
+  await db.insert(schema.loaiHoaDon).values([
+    { ten: "Hóa đơn giá trị gia tăng (GTGT)" },
+    { ten: "Hóa đơn thương mại (Commercial Invoice)" },
+    { ten: "Hóa đơn xuất khẩu" },
+  ]);
+
+  // Insert guarantee types
+  await db.insert(schema.loaiBaoLanh).values([
+    { tenLoai: "Bảo lãnh thực hiện hợp đồng" },
+    { tenLoai: "Bảo lãnh tạm ứng" },
+    { tenLoai: "Bảo lãnh bảo hành" },
+    { tenLoai: "Bảo lãnh dự thầu" },
   ]);
 
   // Insert sample staff

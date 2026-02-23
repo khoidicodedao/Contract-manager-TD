@@ -21,6 +21,15 @@ import {
   insertTiepNhanSchema,
   insertCapTienSchema,
   updateCapTienSchema,
+  insertLoaiHoaDonSchema,
+  insertHoaDonSchema,
+  insertLoaiVanBanPhapLySchema,
+  insertVanBanPhapLySchema,
+  insertLoaiDoanRaVaoSchema,
+  insertDoanRaVaoSchema,
+  insertLoaiBaoLanhSchema,
+  insertBaoLanhSchema,
+  insertThuTinDungSchema,
 } from "../shared/schema.js";
 import multer from "multer";
 import path from "path";
@@ -33,8 +42,116 @@ const upload = multer({
   },
 });
 export async function registerRoutes(app: Express): Promise<void> {
+
+  // ─── Thông báo: hợp đồng & thanh toán sắp / quá hạn ─────────────────────
+  app.get("/api/notifications", async (req, res) => {
+    try {
+      const THRESHOLD_DAYS = 7;
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+
+      const diffDays = (dateStr: string | null | undefined): number | null => {
+        if (!dateStr) return null;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return null;
+        d.setHours(0, 0, 0, 0);
+        return Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      };
+
+      const contracts = await db.select().from(schema.hopDong);
+      const payments = await db.select().from(schema.thanhToan);
+
+      const notifications: any[] = [];
+
+      // --- Hợp đồng: dùng hanHopDong từ thanhToan (nếu có) ---
+      // Lấy hanHopDong mới nhất của mỗi hợp đồng
+      const contractDeadlines: Record<number, string> = {};
+      for (const p of payments) {
+        if (p.hopDongId && p.hanHopDong) {
+          const existing = contractDeadlines[p.hopDongId];
+          if (!existing || new Date(p.hanHopDong) > new Date(existing)) {
+            contractDeadlines[p.hopDongId] = p.hanHopDong;
+          }
+        }
+      }
+
+      for (const [idStr, deadline] of Object.entries(contractDeadlines)) {
+        const days = diffDays(deadline);
+        if (days === null || days > THRESHOLD_DAYS) continue;
+        const hopDongId = Number(idStr);
+        const contract = contracts.find((c) => c.id === hopDongId);
+        const label = contract?.soHdNgoai || contract?.soHdNoi || `HĐ #${hopDongId}`;
+        notifications.push({
+          id: `contract-${hopDongId}`,
+          type: "contract",
+          hopDongId,
+          title: days < 0
+            ? `Hợp đồng quá hạn ${Math.abs(days)} ngày`
+            : days === 0 ? `Hợp đồng hết hạn hôm nay`
+              : `Hợp đồng sắp hết hạn (${days} ngày)`,
+          subtitle: `${label}${contract?.ten ? ` — ${contract.ten}` : ""} · Hạn: ${deadline}`,
+          days,
+          deadline,
+          href: "/hop-dong",
+        });
+      }
+
+      // --- Thanh toán: chưa thanh toán + hạn thực hiện sắp đến ---
+      // Logic giống getPaymentStatus() trong payments.tsx:
+      // deadline = hanThucHien (ưu tiên) hoặc hanHopDong (fallback)
+      for (const p of payments) {
+        if (p.daThanhToan) continue;
+
+        // Ưu tiên hanThucHien, fallback về hanHopDong
+        const deadlineStr = p.hanThucHien || p.hanHopDong;
+        const days = diffDays(deadlineStr);
+        if (days === null || days > THRESHOLD_DAYS) continue;
+
+        const contract = contracts.find((c) => c.id === p.hopDongId);
+        const label = contract?.soHdNgoai || contract?.soHdNoi || `HĐ #${p.hopDongId}`;
+        const deadlineLabel = p.hanThucHien
+          ? `Hạn TH: ${p.hanThucHien}`
+          : `Hạn HĐ: ${p.hanHopDong}`;
+
+        notifications.push({
+          id: `payment-${p.id}`,
+          type: "payment",
+          hopDongId: p.hopDongId,
+          paymentId: p.id,
+          title: days < 0
+            ? `Thanh toán quá hạn ${Math.abs(days)} ngày`
+            : days === 0 ? `Thanh toán đến hạn hôm nay`
+              : `Thanh toán sắp đến hạn (${days} ngày)`,
+          subtitle: `${label}${p.noiDung ? ` · ${p.noiDung}` : ""} · ${deadlineLabel}${p.soTien ? ` · ${p.soTien.toLocaleString()}` : ""}`,
+          days,
+          deadline: deadlineStr,
+          href: "/thanh-toan",
+        });
+      }
+
+
+      notifications.sort((a, b) => a.days - b.days);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  // ─── Hợp đồng tiến độ ────────────────────────────────────────────────────
+  app.get("/api/hop-dong-tien-do", async (req, res) => {
+    try {
+      const items = await db.select().from(schema.hopDongTienDo);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching hop dong tien do:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
   // System overview route
   app.get("/api/system/overview", async (req, res) => {
+
     try {
       const contracts = await db.select().from(schema.hopDong);
       const payments = await db.select().from(schema.thanhToan);
@@ -599,6 +716,415 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
+  // Loại hóa đơn routes
+  app.get("/api/loai-hoa-don", async (req, res) => {
+    try {
+      const items = await db.select().from(schema.loaiHoaDon);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching loai hoa don:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.post("/api/loai-hoa-don", async (req, res) => {
+    try {
+      const validatedData = insertLoaiHoaDonSchema.parse(req.body);
+      const [newItem] = await db
+        .insert(schema.loaiHoaDon)
+        .values(validatedData)
+        .returning();
+      res.status(201).json(newItem);
+    } catch (error) {
+      console.error("Error creating loai hoa don:", error);
+      res.status(500).json({ error: "Lỗi khi tạo loại hóa đơn" });
+    }
+  });
+
+  app.put("/api/loai-hoa-don/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertLoaiHoaDonSchema.parse(req.body);
+      const [updated] = await db
+        .update(schema.loaiHoaDon)
+        .set(validatedData)
+        .where(eq(schema.loaiHoaDon.id, Number(id)))
+        .returning();
+      if (!updated) return res.status(404).json({ error: "Không tìm thấy" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating loai hoa don:", error);
+      res.status(500).json({ error: "Lỗi khi cập nhật" });
+    }
+  });
+
+  app.delete("/api/loai-hoa-don/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [deleted] = await db
+        .delete(schema.loaiHoaDon)
+        .where(eq(schema.loaiHoaDon.id, Number(id)))
+        .returning();
+      if (!deleted) return res.status(404).json({ error: "Không tìm thấy" });
+      res.json(deleted);
+    } catch (error) {
+      console.error("Error deleting loai hoa don:", error);
+      res.status(500).json({ error: "Lỗi khi xóa" });
+    }
+  });
+
+  // Hóa đơn routes
+  app.get("/api/hoa-don", async (req, res) => {
+    const { hopDongId, search } = req.query;
+    try {
+      if (search) {
+        const keyword = `%${search}%`;
+        const items = await db
+          .select({
+            hoaDon: schema.hoaDon,
+            hopDong: schema.hopDong
+          })
+          .from(schema.hoaDon)
+          .leftJoin(schema.hopDong, eq(schema.hoaDon.hopDongId, schema.hopDong.id))
+          .where(
+            sql`LOWER(${schema.hopDong.soHdNgoai}) LIKE LOWER(${keyword}) OR LOWER(${schema.hopDong.soHdNoi}) LIKE LOWER(${keyword}) OR LOWER(${schema.hoaDon.tenHoaDon}) LIKE LOWER(${keyword})`
+          );
+        return res.json(items.map(i => ({ ...i.hoaDon, hopDong: i.hopDong })));
+      }
+
+      let query = db.select().from(schema.hoaDon).$dynamic();
+      if (hopDongId) {
+        query = query.where(eq(schema.hoaDon.hopDongId, Number(hopDongId)));
+      }
+
+      const items = await query;
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching hoa don:", error);
+      res.status(500).json({ error: "Lỗi khi lấy danh sách hóa đơn" });
+    }
+  });
+
+  app.post("/api/hoa-don", async (req, res) => {
+    try {
+      const validatedData = insertHoaDonSchema.parse(req.body);
+      const [newItem] = await db
+        .insert(schema.hoaDon)
+        .values(validatedData)
+        .returning();
+      res.status(201).json(newItem);
+    } catch (error) {
+      console.error("Error creating hoa don:", error);
+      res.status(500).json({ error: "Lỗi khi tạo hóa đơn" });
+    }
+  });
+
+  app.put("/api/hoa-don/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertHoaDonSchema.parse(req.body);
+      const [updated] = await db
+        .update(schema.hoaDon)
+        .set(validatedData)
+        .where(eq(schema.hoaDon.id, Number(id)))
+        .returning();
+      if (!updated) return res.status(404).json({ error: "Không tìm thấy" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating hoa don:", error);
+      res.status(500).json({ error: "Lỗi khi cập nhật hóa đơn" });
+    }
+  });
+
+  app.delete("/api/hoa-don/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [deleted] = await db
+        .delete(schema.hoaDon)
+        .where(eq(schema.hoaDon.id, Number(id)))
+        .returning();
+      if (!deleted) return res.status(404).json({ error: "Không tìm thấy" });
+      res.json(deleted);
+    } catch (error) {
+      console.error("Error deleting hoa don:", error);
+      res.status(500).json({ error: "Lỗi khi xóa hóa đơn" });
+    }
+  });
+
+  // Loại văn bản pháp lý routes
+  app.get("/api/loai-van-ban-phap-ly", async (req, res) => {
+    const { hopDongId } = req.query;
+    try {
+      let query = db.select().from(schema.loaiVanBanPhapLy).$dynamic();
+      if (hopDongId) {
+        query = query.where(eq(schema.loaiVanBanPhapLy.hopDongId, Number(hopDongId)));
+      }
+      const items = await query;
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching loai van ban phap ly:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.post("/api/loai-van-ban-phap-ly", async (req, res) => {
+    try {
+      const validatedData = insertLoaiVanBanPhapLySchema.parse(req.body);
+      const [newItem] = await db
+        .insert(schema.loaiVanBanPhapLy)
+        .values(validatedData)
+        .returning();
+      res.status(201).json(newItem);
+    } catch (error) {
+      console.error("Error creating loai van ban phap ly:", error);
+      res.status(500).json({ error: "Lỗi khi tạo loại văn bản" });
+    }
+  });
+
+  app.put("/api/loai-van-ban-phap-ly/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertLoaiVanBanPhapLySchema.parse(req.body);
+      const [updated] = await db
+        .update(schema.loaiVanBanPhapLy)
+        .set(validatedData)
+        .where(eq(schema.loaiVanBanPhapLy.id, Number(id)))
+        .returning();
+      if (!updated) return res.status(404).json({ error: "Không tìm thấy" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating loai van ban phap ly:", error);
+      res.status(500).json({ error: "Lỗi khi cập nhật" });
+    }
+  });
+
+  app.delete("/api/loai-van-ban-phap-ly/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [deleted] = await db
+        .delete(schema.loaiVanBanPhapLy)
+        .where(eq(schema.loaiVanBanPhapLy.id, Number(id)))
+        .returning();
+      if (!deleted) return res.status(404).json({ error: "Không tìm thấy" });
+      res.json(deleted);
+    } catch (error) {
+      console.error("Error deleting loai van ban phap ly:", error);
+      res.status(500).json({ error: "Lỗi khi xóa" });
+    }
+  });
+
+  // Văn bản pháp lý routes
+  app.get("/api/van-ban-phap-ly", async (req, res) => {
+    const { hopDongId, search } = req.query;
+    try {
+      if (search) {
+        const keyword = `%${search}%`;
+        const items = await db
+          .select({
+            vanBan: schema.vanBanPhapLy,
+            hopDong: schema.hopDong
+          })
+          .from(schema.vanBanPhapLy)
+          .leftJoin(schema.hopDong, eq(schema.vanBanPhapLy.hopDongId, schema.hopDong.id))
+          .where(
+            sql`LOWER(${schema.hopDong.soHdNgoai}) LIKE LOWER(${keyword}) OR LOWER(${schema.hopDong.soHdNoi}) LIKE LOWER(${keyword}) OR LOWER(${schema.vanBanPhapLy.tenVanBan}) LIKE LOWER(${keyword})`
+          );
+        return res.json(items.map(i => ({ ...i.vanBan, hopDong: i.hopDong })));
+      }
+
+      let query = db.select().from(schema.vanBanPhapLy).$dynamic();
+      if (hopDongId) {
+        query = query.where(eq(schema.vanBanPhapLy.hopDongId, Number(hopDongId)));
+      }
+
+      const items = await query;
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching van ban phap ly:", error);
+      res.status(500).json({ error: "Lỗi khi lấy danh sách văn bản" });
+    }
+  });
+
+  app.post("/api/van-ban-phap-ly", async (req, res) => {
+    try {
+      const validatedData = insertVanBanPhapLySchema.parse(req.body);
+      const [newItem] = await db
+        .insert(schema.vanBanPhapLy)
+        .values(validatedData)
+        .returning();
+      res.status(201).json(newItem);
+    } catch (error) {
+      console.error("Error creating van ban phap ly:", error);
+      res.status(500).json({ error: "Lỗi khi tạo văn bản" });
+    }
+  });
+
+  app.put("/api/van-ban-phap-ly/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertVanBanPhapLySchema.parse(req.body);
+      const [updated] = await db
+        .update(schema.vanBanPhapLy)
+        .set(validatedData)
+        .where(eq(schema.vanBanPhapLy.id, Number(id)))
+        .returning();
+      if (!updated) return res.status(404).json({ error: "Không tìm thấy" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating van ban phap ly:", error);
+      res.status(500).json({ error: "Lỗi khi cập nhật văn bản" });
+    }
+  });
+
+  app.delete("/api/van-ban-phap-ly/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [deleted] = await db
+        .delete(schema.vanBanPhapLy)
+        .where(eq(schema.vanBanPhapLy.id, Number(id)))
+        .returning();
+      if (!deleted) return res.status(404).json({ error: "Không tìm thấy" });
+      res.json(deleted);
+    } catch (error) {
+      console.error("Error deleting van ban phap ly:", error);
+      res.status(500).json({ error: "Lỗi khi xóa văn bản" });
+    }
+  });
+
+  // Loại đoàn ra đoàn vào routes
+  app.get("/api/loai-doan-ra-vao", async (req, res) => {
+    try {
+      const items = await db.select().from(schema.loaiDoanRaVao);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching loai doan ra vao:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.post("/api/loai-doan-ra-vao", async (req, res) => {
+    try {
+      const validatedData = insertLoaiDoanRaVaoSchema.parse(req.body);
+      const [newItem] = await db
+        .insert(schema.loaiDoanRaVao)
+        .values(validatedData)
+        .returning();
+      res.status(201).json(newItem);
+    } catch (error) {
+      console.error("Error creating loai doan ra vao:", error);
+      res.status(500).json({ error: "Lỗi khi tạo loại đoàn" });
+    }
+  });
+
+  app.put("/api/loai-doan-ra-vao/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertLoaiDoanRaVaoSchema.parse(req.body);
+      const [updated] = await db
+        .update(schema.loaiDoanRaVao)
+        .set(validatedData)
+        .where(eq(schema.loaiDoanRaVao.id, Number(id)))
+        .returning();
+      if (!updated) return res.status(404).json({ error: "Không tìm thấy" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating loai doan ra vao:", error);
+      res.status(500).json({ error: "Lỗi khi cập nhật" });
+    }
+  });
+
+  app.delete("/api/loai-doan-ra-vao/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [deleted] = await db
+        .delete(schema.loaiDoanRaVao)
+        .where(eq(schema.loaiDoanRaVao.id, Number(id)))
+        .returning();
+      if (!deleted) return res.status(404).json({ error: "Không tìm thấy" });
+      res.json(deleted);
+    } catch (error) {
+      console.error("Error deleting loai doan ra vao:", error);
+      res.status(500).json({ error: "Lỗi khi xóa" });
+    }
+  });
+
+  // Đoàn ra đoàn vào routes
+  app.get("/api/doan-ra-vao", async (req, res) => {
+    const { hopDongId, search } = req.query;
+    try {
+      if (search) {
+        const keyword = `%${search}%`;
+        const items = await db
+          .select({
+            doan: schema.doanRaVao,
+            hopDong: schema.hopDong
+          })
+          .from(schema.doanRaVao)
+          .leftJoin(schema.hopDong, eq(schema.doanRaVao.hopDongId, schema.hopDong.id))
+          .where(
+            sql`LOWER(${schema.hopDong.soHdNgoai}) LIKE LOWER(${keyword}) OR LOWER(${schema.hopDong.soHdNoi}) LIKE LOWER(${keyword}) OR LOWER(${schema.doanRaVao.tenDoan}) LIKE LOWER(${keyword})`
+          );
+        return res.json(items.map(i => ({ ...i.doan, hopDong: i.hopDong })));
+      }
+
+      let query = db.select().from(schema.doanRaVao).$dynamic();
+      if (hopDongId) {
+        query = query.where(eq(schema.doanRaVao.hopDongId, Number(hopDongId)));
+      }
+      const items = await query;
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching doan ra vao:", error);
+      res.status(500).json({ error: "Lỗi khi lấy danh sách đoàn" });
+    }
+  });
+
+  app.post("/api/doan-ra-vao", async (req, res) => {
+    try {
+      const validatedData = insertDoanRaVaoSchema.parse(req.body);
+      const [newItem] = await db
+        .insert(schema.doanRaVao)
+        .values(validatedData)
+        .returning();
+      res.status(201).json(newItem);
+    } catch (error) {
+      console.error("Error creating doan ra vao:", error);
+      res.status(500).json({ error: "Lỗi khi tạo đoàn" });
+    }
+  });
+
+  app.put("/api/doan-ra-vao/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertDoanRaVaoSchema.parse(req.body);
+      const [updated] = await db
+        .update(schema.doanRaVao)
+        .set(validatedData)
+        .where(eq(schema.doanRaVao.id, Number(id)))
+        .returning();
+      if (!updated) return res.status(404).json({ error: "Không tìm thấy" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating doan ra vao:", error);
+      res.status(500).json({ error: "Lỗi khi cập nhật đoàn" });
+    }
+  });
+
+  app.delete("/api/doan-ra-vao/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [deleted] = await db
+        .delete(schema.doanRaVao)
+        .where(eq(schema.doanRaVao.id, Number(id)))
+        .returning();
+      if (!deleted) return res.status(404).json({ error: "Không tìm thấy" });
+      res.json(deleted);
+    } catch (error) {
+      console.error("Error deleting doan ra vao:", error);
+      res.status(500).json({ error: "Lỗi khi xóa đoàn" });
+    }
+  });
+
   app.put("/api/hop-dong/:id", async (req, res) => {
     const id = req.params.id;
     try {
@@ -1042,47 +1568,78 @@ export async function registerRoutes(app: Express): Promise<void> {
     try {
       const file = req.file;
 
-      if (!file) {
-        return res.status(400).json({ error: "Không có file được gửi lên" });
+      // Trường hợp 1: Có file upload (multipart/form-data)
+      if (file) {
+        const {
+          tenFile,
+          loaiFile,
+          hopDongId,
+          nguoiTaiLen,
+          ghiChu,
+          soVanBan,
+          ngayThucHien,
+          duongDan,
+        } = req.body;
+
+        const parsedData = insertFileHopDongSchema.parse({
+          tenFile: tenFile || file.originalname,
+          loaiFile: loaiFile || file.mimetype,
+          kichThuoc: file.size,
+          hopDongId: toInt(hopDongId),
+          nguoiTaiLen: nguoiTaiLen ? toInt(nguoiTaiLen) : undefined,
+          ghiChu,
+          ngayThucHien,
+          soVanBan,
+          duongDan: duongDan || null,
+        });
+
+        const base64FileContent = file.buffer.toString("base64");
+
+        const items = await db
+          .insert(schema.fileHopDong)
+          .values({
+            ...parsedData,
+            noiDungFile: `data:${file.mimetype};base64,${base64FileContent}`,
+            ngayTaiLen: new Date().toISOString(),
+          })
+          .returning();
+
+        return res.status(201).json(items[0]);
       }
 
-      // Lấy dữ liệu từ body
-      const {
-        tenFile,
-        loaiFile,
-        hopDongId,
-        nguoiTaiLen,
-        ghiChu,
-        soVanBan,
-        ngayThucHien,
-      } = req.body;
+      // Trường hợp 2: JSON request (không có file, chỉ lưu metadata/đường dẫn)
+      const body = req.body;
+      const isJson =
+        req.headers["content-type"]?.includes("application/json");
 
-      // Parse & validate bằng Zod
-      const parsedData = insertFileHopDongSchema.parse({
-        tenFile,
-        loaiFile,
-        kichThuoc: file.size, // ✅ lấy từ file
-        hopDongId: toInt(hopDongId),
-        nguoiTaiLen: toInt(nguoiTaiLen),
-        ghiChu,
-        ngayThucHien,
-        soVanBan,
-      });
+      if (isJson || (body && body.hopDongId !== undefined)) {
+        const parsedData = insertFileHopDongSchema.parse({
+          tenFile: body.tenFile || "",
+          loaiFile: body.loaiFile || "",
+          kichThuoc: body.kichThuoc ? Number(body.kichThuoc) : 0,
+          hopDongId: Number(body.hopDongId ?? 0),
+          nguoiTaiLen: body.nguoiTaiLen
+            ? Number(body.nguoiTaiLen)
+            : undefined,
+          ghiChu: body.ghiChu || "",
+          ngayThucHien: body.ngayThucHien || "",
+          soVanBan: body.soVanBan || "",
+          duongDan: body.duongDan || "",
+        });
 
-      // Convert file.buffer thành base64
-      const base64FileContent = file.buffer.toString("base64");
+        const items = await db
+          .insert(schema.fileHopDong)
+          .values({
+            ...parsedData,
+            noiDungFile: body.noiDungFile || null,
+            ngayTaiLen: new Date().toISOString(),
+          })
+          .returning();
 
-      // Lưu vào DB
-      const items = await db
-        .insert(schema.fileHopDong)
-        .values({
-          ...parsedData,
-          noiDungFile: `data:${file.mimetype};base64,${base64FileContent}`,
-          ngayTaiLen: new Date().toISOString(),
-        })
-        .returning();
+        return res.status(201).json(items[0]);
+      }
 
-      res.status(201).json(items[0]);
+      return res.status(400).json({ error: "Không có file hoặc dữ liệu hợp lệ" });
     } catch (error) {
       console.error("Error:", error);
       if (error instanceof z.ZodError) {
@@ -1091,6 +1648,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       res.status(500).json({ error: "Lỗi khi tạo tài liệu" });
     }
   });
+
 
   app.put("/api/file-hop-dong/:id", async (req, res) => {
     try {
@@ -1408,15 +1966,9 @@ export async function registerRoutes(app: Express): Promise<void> {
           chuDauTu: {
             ten: schema.chuDauTu.ten,
           },
-          capTien: {
-            id: schema.capTien.id,
-            ngayCap: schema.capTien.ngayCap,
-            soTien: schema.capTien.soTien,
-            loaiTienId: schema.capTien.loaiTienId,
-            tyGia: schema.capTien.tyGia,
-            ghiChu: schema.capTien.ghiChu,
-            hopDongId: schema.capTien.hopDongId,
-          },
+          capTien: schema.capTien,
+          baoLanh: schema.baoLanh,
+          thuTinDung: schema.thuTinDung,
         })
         .from(schema.hopDong)
         .leftJoin(schema.canBo, eq(schema.hopDong.canBoId, schema.canBo.id))
@@ -1431,9 +1983,17 @@ export async function registerRoutes(app: Express): Promise<void> {
         .leftJoin(
           schema.capTien,
           eq(schema.capTien.hopDongId, schema.hopDong.id)
+        )
+        .leftJoin(
+          schema.baoLanh,
+          eq(schema.baoLanh.hopDongId, schema.hopDong.id)
+        )
+        .leftJoin(
+          schema.thuTinDung,
+          eq(schema.thuTinDung.hopDongId, schema.hopDong.id)
         );
 
-      // Gom các bản ghi capTien vào từng hợp đồng
+      // Gom các bản ghi vào từng hợp đồng, loại bỏ trùng lặp
       const result = Object.values(
         rows.reduce((acc: any, row: any) => {
           const hdId = row.hopDong.id;
@@ -1444,18 +2004,21 @@ export async function registerRoutes(app: Express): Promise<void> {
               nhaCungCap: row.nhaCungCap,
               chuDauTu: row.chuDauTu,
               capTien: [],
+              baoLanh: [],
+              thuTinDung: [],
             };
           }
-          if (row.capTien?.id) {
-            acc[hdId].capTien.push({
-              id: row.capTien.id,
-              ngayCap: row.capTien.ngayCap,
-              soTien: row.capTien.soTien,
-              loaiTienId: row.capTien.loaiTienId,
-              tyGia: row.capTien.tyGia,
-              ghiChu: row.capTien.ghiChu,
-            });
+
+          if (row.capTien?.id && !acc[hdId].capTien.some((i: any) => i.id === row.capTien.id)) {
+            acc[hdId].capTien.push(row.capTien);
           }
+          if (row.baoLanh?.id && !acc[hdId].baoLanh.some((i: any) => i.id === row.baoLanh.id)) {
+            acc[hdId].baoLanh.push(row.baoLanh);
+          }
+          if (row.thuTinDung?.id && !acc[hdId].thuTinDung.some((i: any) => i.id === row.thuTinDung.id)) {
+            acc[hdId].thuTinDung.push(row.thuTinDung);
+          }
+
           return acc;
         }, {})
       );
@@ -1464,6 +2027,283 @@ export async function registerRoutes(app: Express): Promise<void> {
     } catch (error) {
       console.error("Export hop dong error:", error);
       res.status(500).json({ error: "Lỗi server khi export hợp đồng" });
+    }
+  });
+
+  // Loại bảo lãnh
+  app.get("/api/loai-bao-lanh", async (req, res) => {
+    try {
+      const items = await db.select().from(schema.loaiBaoLanh);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching loai bao lanh:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.post("/api/loai-bao-lanh", async (req, res) => {
+    try {
+      const validatedData = insertLoaiBaoLanhSchema.parse(req.body);
+      const items = await db.insert(schema.loaiBaoLanh).values(validatedData).returning();
+      res.status(201).json(items[0]);
+    } catch (error) {
+      console.error("Error creating loai bao lanh:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  // Bảo lãnh
+  app.get("/api/bao-lanh", async (req, res) => {
+    try {
+      const items = await db.select().from(schema.baoLanh);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching bao lanh:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.post("/api/bao-lanh", async (req, res) => {
+    try {
+      const validatedData = insertBaoLanhSchema.parse(req.body);
+      const items = await db.insert(schema.baoLanh).values(validatedData).returning();
+      res.status(201).json(items[0]);
+    } catch (error) {
+      console.error("Error creating bao lanh:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.put("/api/bao-lanh/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertBaoLanhSchema.partial().parse(req.body);
+      const items = await db
+        .update(schema.baoLanh)
+        .set(validatedData)
+        .where(eq(schema.baoLanh.id, id))
+        .returning();
+      if (items.length === 0) return res.status(404).json({ error: "Not found" });
+      res.json(items[0]);
+    } catch (error) {
+      console.error("Error updating bao lanh:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.delete("/api/bao-lanh/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const items = await db.delete(schema.baoLanh).where(eq(schema.baoLanh.id, id)).returning();
+      if (items.length === 0) return res.status(404).json({ error: "Not found" });
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting bao lanh:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  // Thư tín dụng
+  app.get("/api/thu-tin-dung", async (req, res) => {
+    try {
+      const items = await db.select().from(schema.thuTinDung);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching thu tin dung:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.post("/api/thu-tin-dung", async (req, res) => {
+    try {
+      const validatedData = insertThuTinDungSchema.parse(req.body);
+      const items = await db.insert(schema.thuTinDung).values(validatedData).returning();
+      res.status(201).json(items[0]);
+    } catch (error) {
+      console.error("Error creating thu tin dung:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.put("/api/thu-tin-dung/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertThuTinDungSchema.partial().parse(req.body);
+      const items = await db
+        .update(schema.thuTinDung)
+        .set(validatedData)
+        .where(eq(schema.thuTinDung.id, id))
+        .returning();
+      if (items.length === 0) return res.status(404).json({ error: "Not found" });
+      res.json(items[0]);
+    } catch (error) {
+      console.error("Error updating thu tin dung:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.delete("/api/thu-tin-dung/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const items = await db.delete(schema.thuTinDung).where(eq(schema.thuTinDung.id, id)).returning();
+      if (items.length === 0) return res.status(404).json({ error: "Not found" });
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting thu tin dung:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  // Loại chi phí
+  app.get("/api/loai-chi-phi", async (req, res) => {
+    try {
+      const items = await db.select().from(schema.loaiChiPhi);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching loai chi phi:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.post("/api/loai-chi-phi", async (req, res) => {
+    try {
+      const validatedData = schema.insertLoaiChiPhiSchema.parse(req.body);
+      const items = await db.insert(schema.loaiChiPhi).values(validatedData).returning();
+      res.status(201).json(items[0]);
+    } catch (error) {
+      console.error("Error creating loai chi phi:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.put("/api/loai-chi-phi/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = schema.insertLoaiChiPhiSchema.partial().parse(req.body);
+      const items = await db
+        .update(schema.loaiChiPhi)
+        .set(validatedData)
+        .where(eq(schema.loaiChiPhi.id, id))
+        .returning();
+      if (items.length === 0) return res.status(404).json({ error: "Not found" });
+      res.json(items[0]);
+    } catch (error) {
+      console.error("Error updating loai chi phi:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.delete("/api/loai-chi-phi/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const items = await db.delete(schema.loaiChiPhi).where(eq(schema.loaiChiPhi.id, id)).returning();
+      if (items.length === 0) return res.status(404).json({ error: "Not found" });
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting loai chi phi:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  // Chi phí thực tế
+  app.get("/api/chi-phi-thuc-te", async (req, res) => {
+    try {
+      const items = await db.select().from(schema.chiPhiThucTe);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching chi phi thuc te:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.post("/api/chi-phi-thuc-te", async (req, res) => {
+    try {
+      const validatedData = schema.insertChiPhiThucTeSchema.parse(req.body);
+      const items = await db.insert(schema.chiPhiThucTe).values(validatedData).returning();
+      res.status(201).json(items[0]);
+    } catch (error) {
+      console.error("Error creating chi phi thuc te:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.put("/api/chi-phi-thuc-te/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = schema.insertChiPhiThucTeSchema.partial().parse(req.body);
+      const items = await db
+        .update(schema.chiPhiThucTe)
+        .set(validatedData)
+        .where(eq(schema.chiPhiThucTe.id, id))
+        .returning();
+      if (items.length === 0) return res.status(404).json({ error: "Not found" });
+      res.json(items[0]);
+    } catch (error) {
+      console.error("Error updating chi phi thuc te:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.delete("/api/chi-phi-thuc-te/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const items = await db.delete(schema.chiPhiThucTe).where(eq(schema.chiPhiThucTe.id, id)).returning();
+      if (items.length === 0) return res.status(404).json({ error: "Not found" });
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting chi phi thuc te:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  // Chi phí theo hợp đồng
+  app.get("/api/chi-phi-theo-hop-dong", async (req, res) => {
+    try {
+      const items = await db.select().from(schema.chiPhiTheoHopDong);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching chi phi theo hop dong:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.post("/api/chi-phi-theo-hop-dong", async (req, res) => {
+    try {
+      const validatedData = schema.insertChiPhiTheoHopDongSchema.parse(req.body);
+      const items = await db.insert(schema.chiPhiTheoHopDong).values(validatedData).returning();
+      res.status(201).json(items[0]);
+    } catch (error) {
+      console.error("Error creating chi phi theo hop dong:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.put("/api/chi-phi-theo-hop-dong/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = schema.insertChiPhiTheoHopDongSchema.partial().parse(req.body);
+      const items = await db
+        .update(schema.chiPhiTheoHopDong)
+        .set(validatedData)
+        .where(eq(schema.chiPhiTheoHopDong.id, id))
+        .returning();
+      if (items.length === 0) return res.status(404).json({ error: "Not found" });
+      res.json(items[0]);
+    } catch (error) {
+      console.error("Error updating chi phi theo hop dong:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.delete("/api/chi-phi-theo-hop-dong/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const items = await db.delete(schema.chiPhiTheoHopDong).where(eq(schema.chiPhiTheoHopDong.id, id)).returning();
+      if (items.length === 0) return res.status(404).json({ error: "Not found" });
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting chi phi theo hop dong:", error);
+      res.status(500).json({ error: "Lỗi server" });
     }
   });
 }

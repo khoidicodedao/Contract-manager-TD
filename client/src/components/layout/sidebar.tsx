@@ -14,6 +14,11 @@ import {
   DollarSign,
   FileSpreadsheet,
   CalendarDays,
+  FileText,
+  Scale,
+  Plane,
+  Shield,
+  Stamp,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { HopDong } from "@shared/schema";
@@ -44,6 +49,24 @@ export function Sidebar() {
   const { data: loaiNganSach = [] } = useQuery<HopDong[]>({
     queryKey: ["/api/loai-ngan-sach"],
   });
+  const { data: invoices = [] } = useQuery<any[]>({
+    queryKey: ["/api/hoa-don"],
+  });
+  const { data: legalDocs = [] } = useQuery<any[]>({
+    queryKey: ["/api/van-ban-phap-ly"],
+  });
+  const { data: missions = [] } = useQuery<any[]>({
+    queryKey: ["/api/doan-ra-vao"],
+  });
+  const { data: guarantees = [] } = useQuery<any[]>({
+    queryKey: ["/api/bao-lanh"],
+  });
+  const { data: lcList = [] } = useQuery<any[]>({
+    queryKey: ["/api/thu-tin-dung"],
+  });
+  const { data: plannedCosts = [] } = useQuery<any[]>({
+    queryKey: ["/api/chi-phi-theo-hop-dong"],
+  });
   const navigationGroups = [
     {
       group: "Chính",
@@ -61,7 +84,7 @@ export function Sidebar() {
       group: "Quản lý",
       items: [
         {
-          name: "Hợp đồng",
+          name: "Thông tin Hợp đồng",
           href: "/hop-dong",
           icon: File,
           current: false,
@@ -120,12 +143,67 @@ export function Sidebar() {
           color: "text-green-600",
         },
         {
+          name: "Hóa đơn",
+          href: "/hoa-don",
+          icon: FileText,
+          current: false,
+          badge: invoices.length > 0 ? invoices.length : "",
+          color: "text-indigo-600",
+        },
+        {
+          name: "Văn bản pháp lý",
+          href: "/van-ban-phap-ly",
+          icon: Scale,
+          current: false,
+          badge: legalDocs.length > 0 ? legalDocs.length : "",
+          color: "text-amber-600",
+        },
+        {
+          name: "Đoàn ra/vào",
+          href: "/doan-ra-vao",
+          icon: Plane,
+          current: false,
+          badge: missions.length > 0 ? missions.length : "",
+          color: "text-sky-600",
+        },
+        {
           name: "Loại ngân sách",
           href: "/loai-ngan-sach",
           icon: DollarSign,
           current: false,
           badge: loaiNganSach.length > 0 ? loaiNganSach.length : "",
           color: "text-teal-600",
+        },
+        {
+          name: "Bảo lãnh",
+          href: "/bao-lanh",
+          icon: Shield,
+          current: false,
+          badge: guarantees.length > 0 ? guarantees.length : "",
+          color: "text-orange-500",
+        },
+        {
+          name: "Thư tín dụng",
+          href: "/thu-tin-dung",
+          icon: Stamp,
+          current: false,
+          badge: lcList.length > 0 ? lcList.length : "",
+          color: "text-blue-500",
+        },
+        {
+          name: "Chi phí thực tế",
+          href: "/chi-phi-thuc-te",
+          icon: DollarSign,
+          current: false,
+          color: "text-red-600",
+        },
+        {
+          name: "Chi phí Hợp đồng",
+          href: "/chi-phi-theo-hop-dong",
+          icon: FolderOpen,
+          current: false,
+          badge: plannedCosts.length > 0 ? plannedCosts.length : "",
+          color: "text-green-700",
         },
       ],
     },
@@ -148,7 +226,7 @@ export function Sidebar() {
           color: "text-orange-600",
         },
         {
-          name: "Tiếp nhận",
+          name: "Nhập/Xuất",
           href: "/tiep-nhan",
           icon: Inbox,
           current: false,

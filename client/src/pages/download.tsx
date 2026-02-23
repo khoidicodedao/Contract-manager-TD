@@ -81,7 +81,7 @@ export default function DownloadPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <Button 
+              <Button
                 onClick={handleDownload}
                 className="w-full sm:w-auto"
                 size="lg"
@@ -89,7 +89,7 @@ export default function DownloadPage() {
                 <Download className="mr-2 h-4 w-4" />
                 Tải Project (vietnamese-contract-management.tar.gz)
               </Button>
-              
+
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h4 className="font-medium mb-2">Hướng dẫn setup:</h4>
                 <ol className="text-sm text-gray-600 space-y-1">
@@ -135,7 +135,7 @@ export default function DownloadPage() {
                 <ul className="text-gray-600 space-y-1">
                   <li>• Quản lý nhà cung cấp, chủ đầu tư</li>
                   <li>• Theo dõi trang bị, tài liệu</li>
-                  <li>• Tiếp nhận hàng hóa</li>
+                  <li>• Nhập/Xuất hàng hóa</li>
                   <li>• Dashboard thống kê với charts</li>
                 </ul>
               </div>

@@ -57,6 +57,9 @@ const fieldOptions = [
       { key: "loaiTien", label: "Loại tiền" },
       { key: "tyGia", label: "Tỷ giá" },
       { key: "ghiChu", label: "Ghi chú" },
+      { key: "benCap", label: "Bên cấp" },
+      { key: "soTienQuyDoi", label: "Số tiền quy đổi" },
+      { key: "loaiTienQuyDoi", label: "Loại tiền quy đổi" },
     ],
   },
   {
@@ -70,10 +73,11 @@ const fieldOptions = [
     ],
   },
   {
-    group: "Tiếp nhận",
+    group: "Nhập/Xuất",
     key: "tiepNhan",
     fields: [
       { key: "tenHang", label: "Tên hàng" },
+      { key: "hinhThuc", label: "Hình thức" },
       { key: "soToKhai", label: "Số tờ khai" },
       { key: "soVanDon", label: "Số vận đơn" },
       { key: "soHoaDon", label: "Số hóa đơn" },
@@ -81,6 +85,36 @@ const fieldOptions = [
       { key: "soBaoHiem", label: "Số bảo hiểm" },
       { key: "diaDiemThongQuan", label: "Địa điểm thông quan" },
       { key: "ngayThucHien", label: "Ngày thực hiện" },
+      { key: "soGiayPhep", label: "Số giấy phép" },
+      { key: "thoiHanGiayPhep", label: "Thời hạn giấy phép" },
+      { key: "soHaiQuanDacBiet", label: "Số Hải quan đặc biệt" },
+      { key: "soThongBaoMienThue", label: "Số thông báo miễn thuế" },
+      { key: "soBienBanBanGiao", label: "Số biên bản bàn giao" },
+      { key: "ngayBanGiao", label: "Ngày bàn giao" },
+      { key: "maHsCode", label: "Mã HS Code" },
+    ],
+  },
+  {
+    group: "Bảo lãnh",
+    key: "baoLanh",
+    fields: [
+      { key: "soBaoLanh", label: "Số bảo lãnh" },
+      { key: "triGia", label: "Trị giá" },
+      { key: "tyLe", label: "Tỷ lệ (%)" },
+      { key: "ngayCap", label: "Ngày cấp" },
+      { key: "thoiHan", label: "Thời hạn" },
+      { key: "nguoiThuHuong", label: "Người thụ hưởng" },
+    ],
+  },
+  {
+    group: "Thư tín dụng",
+    key: "thuTinDung",
+    fields: [
+      { key: "soLc", label: "Số L/C" },
+      { key: "ngayMo", label: "Ngày mở" },
+      { key: "triGia", label: "Trị giá" },
+      { key: "thoiHan", label: "Thời hạn" },
+      { key: "nguoiThuHuong", label: "Người thụ hưởng" },
     ],
   },
 ];
@@ -122,7 +156,7 @@ export default function ExportHopDongView() {
         .map((ct: any, idx: number) =>
           selected
             .map((fieldKey) => {
-              const fieldMeta = group.fields.find((f) => f.key === fieldKey);
+              const fieldMeta = group.fields.find((f: any) => f.key === fieldKey);
               const label = fieldMeta?.label || fieldKey;
               return `${label}: ${ct[fieldKey] ?? ""}`;
             })
@@ -137,7 +171,7 @@ export default function ExportHopDongView() {
         .map((step: any, idx: number) =>
           selected
             .map((fieldKey) => {
-              const fieldMeta = group.fields.find((f) => f.key === fieldKey);
+              const fieldMeta = group.fields.find((f: any) => f.key === fieldKey);
               const label = fieldMeta?.label || fieldKey;
               return `${label}: ${step[fieldKey] ?? ""}`;
             })
@@ -149,10 +183,10 @@ export default function ExportHopDongView() {
     // Nếu là tiếp nhận (mảng nhiều dòng)
     if (group.key === "tiepNhan" && Array.isArray(tiepNhan)) {
       return tiepNhan
-        .map((tn: any, idx: number) =>
+        .map((tn: any) =>
           selected
             .map((fieldKey) => {
-              const fieldMeta = group.fields.find((f) => f.key === fieldKey);
+              const fieldMeta = group.fields.find((f: any) => f.key === fieldKey);
               const label = fieldMeta?.label || fieldKey;
               return `${label}: ${tn[fieldKey] ?? ""}`;
             })
@@ -161,11 +195,41 @@ export default function ExportHopDongView() {
         .join("\n"); // xuống dòng mỗi lần tiếp nhận
     }
 
+    // Nếu là bảo lãnh (mảng nhiều dòng)
+    if (group.key === "baoLanh" && Array.isArray(item.baoLanh)) {
+      return item.baoLanh
+        .map((bl: any) =>
+          selected
+            .map((fieldKey) => {
+              const fieldMeta = group.fields.find((f: any) => f.key === fieldKey);
+              const label = fieldMeta?.label || fieldKey;
+              return `${label}: ${bl[fieldKey] ?? ""}`;
+            })
+            .join(" | ")
+        )
+        .join("\n");
+    }
+
+    // Nếu là thư tín dụng (mảng nhiều dòng)
+    if (group.key === "thuTinDung" && Array.isArray(item.thuTinDung)) {
+      return item.thuTinDung
+        .map((lc: any) =>
+          selected
+            .map((fieldKey) => {
+              const fieldMeta = group.fields.find((f: any) => f.key === fieldKey);
+              const label = fieldMeta?.label || fieldKey;
+              return `${label}: ${lc[fieldKey] ?? ""}`;
+            })
+            .join(" | ")
+        )
+        .join("\n");
+    }
+
     // Các group khác (object 1 cấp)
     if (item[group.key]) {
       return selected
         .map((fieldKey) => {
-          const fieldMeta = group.fields.find((f) => f.key === fieldKey);
+          const fieldMeta = group.fields.find((f: any) => f.key === fieldKey);
           const label = fieldMeta?.label || fieldKey;
           return `${label}: ${item[group.key][fieldKey] ?? ""}`;
         })
@@ -212,7 +276,7 @@ export default function ExportHopDongView() {
         <Header
           title="Xuất dữ liệu hợp đồng"
           subtitle="Chọn trường và xuất dữ liệu hợp đồng ra Excel"
-          onCreateContract={() => {}}
+          onCreateContract={() => { }}
         />
         <main className="flex-1 overflow-auto p-6">
           <div className="space-y-6">

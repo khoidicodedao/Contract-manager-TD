@@ -57,40 +57,56 @@ export default function ContractModal({
     resolver: zodResolver(insertHopDongSchema),
     defaultValues: contract
       ? {
-          ten: contract.ten || "",
-          moTa: contract.moTa || "",
-          soHdNoi: contract.soHdNoi || "",
-          soHdNgoai: contract.soHdNgoai || "",
-          ngay: contract.ngay || new Date().toISOString().split("T")[0],
-          loaiHopDongId: contract.loaiHopDongId,
-          chuDauTuId: contract.chuDauTuId,
-          nhaCungCapId: contract.nhaCungCapId,
-          loaiNganSachId: contract.loaiNganSachId,
-          canBoId: contract.canBoId,
-          trangThaiHopDongId: contract.trangThaiHopDongId,
-          giaTriHopDong: contract.giaTriHopDong ?? 0,
-          loaiTienId: contract.loaiTienId ?? 1,
-          tyGia: contract.tyGia,
-          phiUyThac: contract.phiUyThac,
-          thueNhaThau: contract.thueNhaThau,
-          // ---- các trường mới ----
-          hinhThucHopDong: contract.hinhThucHopDong || undefined,
-          hinhThucGiaoHang: contract.hinhThucGiaoHang || "",
-          thuTruongPhuTrach: contract.thuTruongPhuTrach || "",
-          soLanGiaoHang: contract.soLanGiaoHang ?? undefined,
-        }
+        ten: contract.ten || "",
+        moTa: contract.moTa || "",
+        soHdNoi: contract.soHdNoi || "",
+        soHdNgoai: contract.soHdNgoai || "",
+        ngay: contract.ngay || new Date().toISOString().split("T")[0],
+        loaiHopDongId: contract.loaiHopDongId,
+        chuDauTuId: contract.chuDauTuId,
+        nhaCungCapId: contract.nhaCungCapId,
+        loaiNganSachId: contract.loaiNganSachId,
+        canBoId: contract.canBoId,
+        trangThaiHopDongId: contract.trangThaiHopDongId,
+        giaTriHopDong: contract.giaTriHopDong ?? 0,
+        loaiTienId: contract.loaiTienId ?? 1,
+        tyGia: contract.tyGia,
+        phiUyThac: contract.phiUyThac,
+        thueNhaThau: contract.thueNhaThau,
+        // ---- các trường mới ----
+        hinhThucHopDong: contract.hinhThucHopDong || undefined,
+        hinhThucGiaoHang: contract.hinhThucGiaoHang || "",
+        thuTruongPhuTrach: contract.thuTruongPhuTrach || "",
+        soLanGiaoHang: contract.soLanGiaoHang ?? undefined,
+        tongHanMucNganSach: contract.tongHanMucNganSach ?? 0,
+        loaiTienTongHanMuc: contract.loaiTienTongHanMuc || "VNĐ",
+        chiPhiDoanRaDoanVao: contract.chiPhiDoanRaDoanVao ?? 0,
+        chiPhiThucHienTrongNuoc: contract.chiPhiThucHienTrongNuoc ?? 0,
+        soBienBanThanhLy: contract.soBienBanThanhLy || "",
+        ngayBienBanThanhLy: contract.ngayBienBanThanhLy || "",
+        soBienBanBanGiaoDongBo: contract.soBienBanBanGiaoDongBo || "",
+        ngayBienBanBanGiaoDongBo: contract.ngayBienBanBanGiaoDongBo || "",
+      }
       : {
-          ten: "",
-          moTa: "",
-          soHdNoi: "",
-          soHdNgoai: "",
-          ngay: new Date().toISOString().split("T")[0],
-          // ---- default cho trường mới (nếu cần) ----
-          hinhThucHopDong: undefined,
-          hinhThucGiaoHang: "",
-          thuTruongPhuTrach: "",
-          soLanGiaoHang: undefined,
-        },
+        ten: "",
+        moTa: "",
+        soHdNoi: "",
+        soHdNgoai: "",
+        ngay: new Date().toISOString().split("T")[0],
+        // ---- default cho trường mới (nếu cần) ----
+        hinhThucHopDong: undefined,
+        hinhThucGiaoHang: "",
+        thuTruongPhuTrach: "",
+        soLanGiaoHang: undefined,
+        tongHanMucNganSach: 0,
+        loaiTienTongHanMuc: "VNĐ",
+        chiPhiDoanRaDoanVao: 0,
+        chiPhiThucHienTrongNuoc: 0,
+        soBienBanThanhLy: "",
+        ngayBienBanThanhLy: "",
+        soBienBanBanGiaoDongBo: "",
+        ngayBienBanBanGiaoDongBo: "",
+      },
   });
 
   // Fetch reference data
@@ -178,7 +194,7 @@ export default function ContractModal({
                   <FormItem>
                     <FormLabel>Tên hợp đồng *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Nhập tên hợp đồng" {...field} />
+                      <Input placeholder="Nhập tên hợp đồng" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -192,7 +208,7 @@ export default function ContractModal({
                   <FormItem>
                     <FormLabel>Số hợp đồng nội bộ *</FormLabel>
                     <FormControl>
-                      <Input placeholder="HD-2024-XXX" {...field} />
+                      <Input placeholder="HD-2024-XXX" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -206,7 +222,7 @@ export default function ContractModal({
                   <FormItem>
                     <FormLabel>Số hợp đồng ngoại</FormLabel>
                     <FormControl>
-                      <Input placeholder="Số HĐ từ đối tác" {...field} />
+                      <Input placeholder="Số HĐ từ đối tác" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -220,7 +236,7 @@ export default function ContractModal({
                   <FormItem>
                     <FormLabel>Ngày ký *</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input type="date" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -243,7 +259,7 @@ export default function ContractModal({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {loaiHopDong?.map((item: any) => (
+                        {Array.isArray(loaiHopDong) && loaiHopDong.map((item: any) => (
                           <SelectItem key={item.id} value={item.id.toString()}>
                             {item.ten}
                           </SelectItem>
@@ -271,15 +287,15 @@ export default function ContractModal({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {trangThaiHopDong?.map((item: any) => (
+                        {Array.isArray(trangThaiHopDong) && trangThaiHopDong.map((item: any) => (
                           <SelectItem key={item.id} value={item.id.toString()}>
                             {item.id === 1
                               ? "Đang thực hiện"
                               : item.id === 2
-                              ? "Đã Thanh lý"
-                              : item.id === 3
-                              ? "Chưa thực hiện"
-                              : `Trạng thái ${item.id}`}
+                                ? "Đã Thanh lý"
+                                : item.id === 3
+                                  ? "Chưa thực hiện"
+                                  : `Trạng thái ${item.id}`}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -305,7 +321,7 @@ export default function ContractModal({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {nhaCungCap?.map((item: any) => (
+                        {Array.isArray(nhaCungCap) && nhaCungCap.map((item: any) => (
                           <SelectItem key={item.id} value={item.id.toString()}>
                             <div className="flex flex-col">
                               <span className="font-medium">{item.ten}</span>
@@ -338,7 +354,7 @@ export default function ContractModal({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {chuDauTu?.map((item: any) => (
+                        {Array.isArray(chuDauTu) && chuDauTu.map((item: any) => (
                           <SelectItem key={item.id} value={item.id.toString()}>
                             <div className="flex flex-col">
                               <span className="font-medium">{item.ten}</span>
@@ -368,6 +384,7 @@ export default function ContractModal({
                         step="any" // cho phép nhập số lẻ
                         placeholder="VD: 100000000"
                         {...field}
+                        value={field.value ?? 0}
                         onChange={(e) => {
                           const value = parseFloat(e.target.value);
                           field.onChange(isNaN(value) ? 0 : value);
@@ -396,7 +413,7 @@ export default function ContractModal({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {loaiTien?.map((item: any) => (
+                        {Array.isArray(loaiTien) && loaiTien.map((item: any) => (
                           <SelectItem key={item.id} value={item.id.toString()}>
                             <div className="flex flex-col">
                               <span className="font-medium">{item.ten}</span>
@@ -423,6 +440,7 @@ export default function ContractModal({
                         step={1}
                         placeholder="VD: 100000000"
                         {...field}
+                        value={field.value ?? 0}
                         onChange={(e) => {
                           const value = parseFloat(e.target.value);
                           field.onChange(isNaN(value) ? 0 : value);
@@ -447,6 +465,7 @@ export default function ContractModal({
                         step={0.1}
                         placeholder="VD: 1.2"
                         {...field}
+                        value={field.value ?? 0}
                         onChange={(e) => {
                           const value = parseFloat(e.target.value);
                           field.onChange(isNaN(value) ? 0 : value);
@@ -474,7 +493,7 @@ export default function ContractModal({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {canBo?.map((item: any) => (
+                        {Array.isArray(canBo) && canBo.map((item: any) => (
                           <SelectItem key={item.id} value={item.id.toString()}>
                             <div className="flex flex-col">
                               <span className="font-medium">{item.ten}</span>
@@ -514,7 +533,7 @@ export default function ContractModal({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {loaiNganSach?.map((item: any) => (
+                        {Array.isArray(loaiNganSach) && loaiNganSach.map((item: any) => (
                           <SelectItem key={item.id} value={item.id.toString()}>
                             {item.ten}
                           </SelectItem>
@@ -537,7 +556,7 @@ export default function ContractModal({
                     <FormLabel>Hình thức hợp đồng</FormLabel>
                     <Select
                       onValueChange={(value) => field.onChange(value)}
-                      value={field.value}
+                      value={field.value ?? ""}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -568,6 +587,7 @@ export default function ContractModal({
                       <Input
                         placeholder="VD: Giao từng đợt, FOB/CIF, giao tại kho..."
                         {...field}
+                        value={field.value ?? ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -583,7 +603,7 @@ export default function ContractModal({
                   <FormItem>
                     <FormLabel>Thủ trưởng phụ trách</FormLabel>
                     <FormControl>
-                      <Input placeholder="Họ tên người phụ trách" {...field} />
+                      <Input placeholder="Họ tên người phụ trách" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -620,6 +640,168 @@ export default function ContractModal({
                   </FormItem>
                 )}
               />
+
+              {/* Tổng hạn mức ngân sách */}
+              <FormField
+                control={form.control}
+                name="tongHanMucNganSach"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tổng hạn mức ngân sách</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="any"
+                        placeholder="VD: 500000000"
+                        {...field}
+                        value={field.value ?? 0}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value);
+                          field.onChange(isNaN(value) ? 0 : value);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Loại tiền tổng hạn mức */}
+              <FormField
+                control={form.control}
+                name="loaiTienTongHanMuc"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Loại tiền tổng hạn mức</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value ?? "VNĐ"}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn loại tiền" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="VNĐ">VNĐ</SelectItem>
+                        <SelectItem value="USD">USD</SelectItem>
+                        <SelectItem value="EUR">EUR</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Chi phí đoàn ra, đoàn vào */}
+              <FormField
+                control={form.control}
+                name="chiPhiDoanRaDoanVao"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Chi phí đoàn ra, đoàn vào (VNĐ)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="any"
+                        placeholder="VD: 50000000"
+                        {...field}
+                        value={field.value ?? 0}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value);
+                          field.onChange(isNaN(value) ? 0 : value);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Chi phí thực hiện trong nước */}
+              <FormField
+                control={form.control}
+                name="chiPhiThucHienTrongNuoc"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Chi phí thực hiện trong nước (VNĐ)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="any"
+                        placeholder="VD: 100000000"
+                        {...field}
+                        value={field.value ?? 0}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value);
+                          field.onChange(isNaN(value) ? 0 : value);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Số biên bản thanh lý */}
+              <FormField
+                control={form.control}
+                name="soBienBanThanhLy"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Số biên bản thanh lý</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Số biên bản thanh lý" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Ngày biên bản thanh lý */}
+              <FormField
+                control={form.control}
+                name="ngayBienBanThanhLy"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ngày biên bản thanh lý</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Số biên bản bàn giao đồng bộ */}
+              <FormField
+                control={form.control}
+                name="soBienBanBanGiaoDongBo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Số biên bản bàn giao đồng bộ</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Số biên bản bàn giao" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Ngày biên bản bàn giao đồng bộ */}
+              <FormField
+                control={form.control}
+                name="ngayBienBanBanGiaoDongBo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ngày biên bản bàn giao đồng bộ</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value ?? ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               {/* ========= HẾT CÁC TRƯỜNG MỚI ========= */}
             </div>
 
@@ -637,6 +819,7 @@ export default function ContractModal({
                       step={1}
                       placeholder="VD: 100000000"
                       {...field}
+                      value={field.value ?? 0}
                       onChange={(e) => {
                         const value = parseFloat(e.target.value);
                         field.onChange(isNaN(value) ? 0 : value);
@@ -660,6 +843,7 @@ export default function ContractModal({
                       rows={4}
                       placeholder="Mô tả chi tiết về hợp đồng..."
                       {...field}
+                      value={field.value ?? ""}
                     />
                   </FormControl>
                   <FormMessage />
@@ -677,8 +861,8 @@ export default function ContractModal({
                     ? "Đang lưu..."
                     : "Đang tạo..."
                   : contract
-                  ? "Lưu thay đổi"
-                  : "Tạo hợp đồng"}
+                    ? "Lưu thay đổi"
+                    : "Tạo hợp đồng"}
               </Button>
             </div>
           </form>

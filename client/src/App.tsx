@@ -22,6 +22,14 @@ import ProtectedRoute from "./lib/protected-route";
 import Export from "@/pages/export";
 import WorkCalendar from "./pages/work-calendar";
 import Settings from "@/pages/settings";
+import Invoices from "@/pages/invoices";
+import LegalDocuments from "@/pages/legal-documents";
+import Missions from "@/pages/missions";
+import Guarantees from "@/pages/guarantees";
+import LetterOfCredit from "@/pages/letter-of-credit";
+import ActualCosts from "@/pages/actual-costs";
+import PlannedCosts from "@/pages/planned-costs";
+
 function Router() {
   console.log("Current pathname:", window.location.hash); // 👈 debug ở đây
   return (
@@ -154,6 +162,70 @@ function Router() {
         component={() => (
           <ProtectedRoute>
             <Settings />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/hoa-don"
+        component={() => (
+          <ProtectedRoute>
+            <Invoices />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/van-ban-phap-ly"
+        component={() => (
+          <ProtectedRoute>
+            <LegalDocuments />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/doan-ra-vao"
+        component={() => (
+          <ProtectedRoute>
+            <Missions />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/bao-lanh"
+        component={() => (
+          <ProtectedRoute>
+            <Guarantees />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/thu-tin-dung"
+        component={() => (
+          <ProtectedRoute>
+            <LetterOfCredit />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/loai-chi-phi"
+        component={() => {
+          // Redirect to /chi-phi-thuc-te since Loại chi phí is now a tab there
+          window.location.replace("/chi-phi-thuc-te");
+          return null;
+        }}
+      />
+      <Route
+        path="/chi-phi-thuc-te"
+        component={() => (
+          <ProtectedRoute>
+            <ActualCosts />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/chi-phi-theo-hop-dong"
+        component={() => (
+          <ProtectedRoute>
+            <PlannedCosts />
           </ProtectedRoute>
         )}
       />
