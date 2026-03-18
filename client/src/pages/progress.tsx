@@ -34,6 +34,7 @@ import * as XLSX from "xlsx";
 export default function ProgressPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [contractFilter, setContractFilter] = useState("all");
   const [modalMode, setModalMode] = useState<"create" | "edit" | "view" | null>(
     null
   );
@@ -64,6 +65,11 @@ export default function ProgressPage() {
         (step) => step.trangThai?.toLowerCase() === statusFilter
       );
     }
+    if (contractFilter !== "all") {
+      filtered = filtered.filter(
+        (step) => step.hopDongId?.toString() === contractFilter
+      );
+    }
     if (searchTerm) {
       filtered = filtered.filter(
         (step) =>
@@ -72,7 +78,7 @@ export default function ProgressPage() {
       );
     }
     return filtered;
-  }, [progressSteps, searchTerm, statusFilter]);
+  }, [progressSteps, searchTerm, statusFilter, contractFilter]);
 
   const completedSteps = progressSteps.filter(
     (step) => step.trangThai?.toLowerCase() === "hoàn thành"
@@ -176,6 +182,7 @@ export default function ProgressPage() {
         "Tên bước": step.ten || "Không tên",
         "Hợp đồng":
           contracts.find((c) => c.id === step.hopDongId)?.soHdNgoai ||
+          contracts.find((c) => c.id === step.hopDongId)?.soHdNoi ||
           "Không liên kết",
         "Ngày bắt đầu": formatDate(step.ngayBatDau),
         "Ngày kết thúc": formatDate(step.ngayKetThuc),
@@ -254,37 +261,80 @@ export default function ProgressPage() {
 
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <CardTitle>Các bước thực hiện</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => refetch()}
-                    disabled={isFetching}
-                    title="Làm mới"
-                  >
-                    <RefreshCw
-                      className={`w-4 h-4 mr-2 ${
-                        isFetching ? "animate-spin" : ""
-                      }`}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+                  {/* Tìm kiếm */}
+                  <div className="relative flex-1 sm:w-64">
+                    <input
+                      type="text"
+                      placeholder="Tìm kiếm bước thực hiện..."
+                      className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
                     />
-                    Làm mới
-                  </Button>
+                  </div>
 
-                  {/* Nút Export Excel */}
-                  <Button
-                    variant="secondary"
-                    onClick={handleExportExcel}
-                    title="Xuất Excel"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Xuất Excel
-                  </Button>
+                  {/* Lọc theo Hợp đồng */}
+                  <div className="sm:w-64">
+                    <select
+                      className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={contractFilter}
+                      onChange={(e) => setContractFilter(e.target.value)}
+                    >
+                      <option value="all">Tất cả hợp đồng</option>
+                      {contracts.map((contract) => (
+                        <option key={contract.id} value={contract.id.toString()}>
+                          {contract.soHdNgoai || contract.soHdNoi} - {contract.ten}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                  <Button onClick={() => handleOpenModal("create")}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Thêm bước thực hiện
-                  </Button>
+                  {/* Lọc theo Trạng thái */}
+                  <div className="sm:w-40">
+                    <select
+                      className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                      <option value="all">Tất cả trạng thái</option>
+                      <option value="chờ thực hiện">Chờ thực hiện</option>
+                      <option value="đang thực hiện">Đang thực hiện</option>
+                      <option value="hoàn thành">Hoàn thành</option>
+                      <option value="tạm dừng">Tạm dừng</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => refetch()}
+                      disabled={isFetching}
+                      title="Làm mới"
+                    >
+                      <RefreshCw
+                        className={`w-4 h-4 ${
+                          isFetching ? "animate-spin" : ""
+                        }`}
+                      />
+                    </Button>
+
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleExportExcel}
+                      title="Xuất Excel"
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
+
+                    <Button size="sm" onClick={() => handleOpenModal("create")}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Thêm
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardHeader>

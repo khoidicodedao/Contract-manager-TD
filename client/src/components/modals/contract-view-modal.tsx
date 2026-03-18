@@ -638,7 +638,7 @@ export default function ContractViewModal({
         <Tabs defaultValue="info" className="w-full">
           <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="info">Theo dõi</TabsTrigger>
-            <TabsTrigger value="payments">Thanh toán</TabsTrigger>
+            <TabsTrigger value="payments">Tài chính</TabsTrigger>
             <TabsTrigger value="costs">Chi phí</TabsTrigger>
             <TabsTrigger value="bao-lanh">Bảo lãnh</TabsTrigger>
             <TabsTrigger value="thu-tin-dung">L/C</TabsTrigger>
@@ -828,138 +828,6 @@ export default function ContractViewModal({
             <Separator />
 
             {/* Payment Information */}
-            <div>
-              <h3 className="text-lg font-semibold mb-3">
-                Thông tin thanh toán
-              </h3>
-              {contractPayments.length > 0 ? (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-50 rounded-lg border">
-                    <div className="text-center">
-                      <p className="text-sm text-slate-600">Tổng số lần</p>
-                      <p className="text-xl font-bold text-blue-600">
-                        {contractPayments.length}
-                      </p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-slate-600">
-                        Tổng giá trị các lần thanh toán:{" "}
-                      </p>
-                      <p className="text-xl font-bold text-green-600">
-                        {contractPayments
-                          .reduce(
-                            (sum: number, p: any) =>
-                              sum + (parseFloat(p.soTien || "0") || 0),
-                            0
-                          )
-                          .toLocaleString("vi-VN")}{" "}
-                        {getCurrencyName(contract.loaiTienId)}
-                      </p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-slate-600">Đã thanh toán</p>
-                      <p className="text-xl font-bold text-slate-700">
-                        {contractPayments.filter((p) => p.daThanhToan).length}/
-                        {contractPayments.length}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    {contractPayments.map((payment, index) => (
-                      <div
-                        key={payment.id || index}
-                        className="p-4 border rounded-lg bg-white"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-slate-900">
-                            Lần thanh toán #{index + 1}
-                          </h4>
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${payment.daThanhToan
-                              ? "bg-green-100 text-green-800"
-                              : payment.isOverdue
-                                ? "bg-red-100 text-red-800"
-                                : "bg-orange-100 text-orange-800"
-                              }`}
-                          >
-                            {payment.daThanhToan
-                              ? "Đã thanh toán"
-                              : payment.isOverdue
-                                ? "Quá hạn"
-                                : "Chưa thanh toán"}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
-                          <div>
-                            <span className="text-slate-600">Số tiền:</span>
-                            <p className="font-medium">
-                              {parseFloat(payment.soTien || "0").toLocaleString(
-                                "vi-VN"
-                              )}{" "}
-                              {loaiTien.find(
-                                (lt: any) => lt.id === payment.loaiTienId
-                              )?.ten || "VND"}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-slate-600">
-                              Loại thanh toán:
-                            </span>
-                            <p className="font-medium">
-                              {loaiThanhToan.find(
-                                (lt: any) => lt.id === payment.loaiThanhToanId
-                              )?.ten || "Chưa xác định"}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-slate-600">Hình thức:</span>
-                            <p className="font-medium">
-                              {loaiHinhThucThanhToan.find(
-                                (lh: any) =>
-                                  lh.id === payment.loaiHinhThucThanhToanId
-                              )?.ten || "Chưa xác định"}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-slate-600">
-                              Hạn thực hiện:
-                            </span>
-                            <p className="font-medium">
-                              {payment.hanThucHien
-                                ? formatDate(payment.hanThucHien)
-                                : "Chưa xác định"}
-                            </p>
-                          </div>
-                        </div>
-
-                        {payment.ghiChu && (
-                          <div className="mt-2 pt-2 border-t">
-                            <span className="text-slate-600 text-sm">
-                              Ghi chú:
-                            </span>
-                            <p className="text-sm text-slate-700 mt-1">
-                              {payment.ghiChu}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
-                  <CreditCard className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-                  <p className="text-sm">Chưa có thông tin thanh toán</p>
-                  <p className="text-sm">
-                    Vào trang Thanh toán để thêm các lần thanh toán
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <Separator />
 
             {/* Related Information */}
             <div>
@@ -1060,16 +928,23 @@ export default function ContractViewModal({
                           <p className="text-xs text-gray-600 mt-1">
                             Chức vụ: {staff.chucVu || ""}
                           </p>
-                          {staff.email && (
-                            <p className="text-xs text-gray-600">
-                              Email: {staff.email}
-                            </p>
-                          )}
-                          {staff.soDienThoai && (
-                            <p className="text-xs text-gray-600">
-                              SĐT: {staff.soDienThoai}
-                            </p>
-                          )}
+                          <div className="mt-1">
+                            {staff.trangThai === "Đang làm việc" && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-100 text-green-800">
+                                Đang làm việc
+                              </span>
+                            )}
+                            {staff.trangThai === "Đã phục viên" && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-100 text-red-800">
+                                Đã phục viên
+                              </span>
+                            )}
+                            {staff.trangThai === "Chuyển phòng" && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-yellow-100 text-yellow-800">
+                                Chuyển phòng
+                              </span>
+                            )}
+                          </div>
                         </>
                       );
                     })()}

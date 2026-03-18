@@ -29,6 +29,7 @@ import Guarantees from "@/pages/guarantees";
 import LetterOfCredit from "@/pages/letter-of-credit";
 import ActualCosts from "@/pages/actual-costs";
 import PlannedCosts from "@/pages/planned-costs";
+import CostTypes from "@/pages/cost-types";
 
 function Router() {
   console.log("Current pathname:", window.location.hash); // 👈 debug ở đây
@@ -207,11 +208,11 @@ function Router() {
       />
       <Route
         path="/loai-chi-phi"
-        component={() => {
-          // Redirect to /chi-phi-thuc-te since Loại chi phí is now a tab there
-          window.location.replace("/chi-phi-thuc-te");
-          return null;
-        }}
+        component={() => (
+          <ProtectedRoute>
+            <CostTypes />
+          </ProtectedRoute>
+        )}
       />
       <Route
         path="/chi-phi-thuc-te"

@@ -184,7 +184,7 @@ export default function ProgressModal({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {contracts?.map((contract: any) => (
+                        {Array.isArray(contracts) && contracts.map((contract: any) => (
                           <SelectItem
                             key={contract.id}
                             value={contract.id.toString()}
@@ -209,6 +209,7 @@ export default function ProgressModal({
                       <Input
                         type="number"
                         {...field}
+                        value={field.value ?? ""}
                         onChange={(e) =>
                           field.onChange(parseInt(e.target.value))
                         }
@@ -248,7 +249,7 @@ export default function ProgressModal({
                 <FormItem>
                   <FormLabel>Mô tả</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Nhập mô tả chi tiết..." {...field} />
+                    <Textarea placeholder="Nhập mô tả chi tiết..." {...field} value={field.value ?? ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -305,12 +306,33 @@ export default function ProgressModal({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {staff?.map((person: any) => (
+                        {Array.isArray(staff) && staff.map((person: any) => (
                           <SelectItem
                             key={person.id}
                             value={person.id.toString()}
                           >
-                            {person.ten} - {person.chucVu}
+                            <div className="flex flex-col">
+                              <span>
+                                {person.ten} - {person.chucVu}
+                              </span>
+                              <div className="flex mt-1">
+                                {person.trangThai === "Đang làm việc" && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-800">
+                                    Đang làm việc
+                                  </span>
+                                )}
+                                {person.trangThai === "Đã phục viên" && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-800">
+                                    Đã phục viên
+                                  </span>
+                                )}
+                                {person.trangThai === "Chuyển phòng" && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-yellow-100 text-yellow-800">
+                                    Chuyển phòng
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -332,6 +354,7 @@ export default function ProgressModal({
                       <Input
                         type="date"
                         {...field}
+                        value={field.value ?? ""}
                         disabled={mode === "view"}
                       />
                     </FormControl>
@@ -350,6 +373,7 @@ export default function ProgressModal({
                       <Input
                         type="date"
                         {...field}
+                        value={field.value ?? ""}
                         disabled={mode === "view"}
                       />
                     </FormControl>
@@ -370,6 +394,7 @@ export default function ProgressModal({
                       <Input
                         type="date"
                         {...field}
+                        value={field.value ?? ""}
                         disabled={mode === "view"}
                       />
                     </FormControl>
@@ -388,6 +413,7 @@ export default function ProgressModal({
                       <Input
                         type="date"
                         {...field}
+                        value={field.value ?? ""}
                         disabled={mode === "view"}
                       />
                     </FormControl>
@@ -407,6 +433,7 @@ export default function ProgressModal({
                       type="number"
                       placeholder="Nhập chi phí..."
                       {...field}
+                      value={field.value ?? ""}
                     />
                   </FormControl>
                   <FormMessage />
@@ -420,7 +447,7 @@ export default function ProgressModal({
                 <FormItem>
                   <FormLabel>Địa điểm </FormLabel>
                   <FormControl>
-                    <Input placeholder="Nhập địa điểm..." {...field} />
+                    <Input placeholder="Nhập địa điểm..." {...field} value={field.value ?? ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -473,6 +500,7 @@ export default function ProgressModal({
                       step={0.1}
                       placeholder="VD: 1.2"
                       {...field}
+                      value={field.value ?? ""}
                       onChange={(e) => {
                         const value = parseFloat(e.target.value);
                         field.onChange(isNaN(value) ? 0 : value);
@@ -490,7 +518,7 @@ export default function ProgressModal({
                 <FormItem>
                   <FormLabel>Ghi chú</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Nhập ghi chú..." {...field} />
+                    <Textarea placeholder="Nhập ghi chú..." {...field} value={field.value ?? ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

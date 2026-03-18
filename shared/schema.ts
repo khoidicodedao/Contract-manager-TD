@@ -18,6 +18,7 @@ export const canBo = sqliteTable("can_bo", {
   diaChi: text("dia_chi"),
   moTa: text("mo_ta"),
   anh: text("anh"),
+  trangThai: text("trang_thai"),
 });
 
 // Nhà cung cấp
@@ -229,6 +230,13 @@ export const hopDongTienDo = sqliteTable("hop_dong_tien_do", {
   diaDiem: text("dia_diem"),
 });
 
+// Cài đặt hệ thống
+export const systemSettings = sqliteTable("system_settings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  key: text("key").unique().notNull(),
+  value: text("value"),
+});
+
 // File hợp đồng
 export const fileHopDong = sqliteTable("file_hop_dong", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -263,6 +271,7 @@ export const buocThucHien = sqliteTable("buoc_thuc_hien", {
   diaDiem: text("dia_diem"),
   tyGia: real("ty_gia"),
   loaiTienId: integer("loai_tien_id"),
+  canhBao: integer("canh_bao", { mode: "boolean" }),
 });
 
 export const capTien = sqliteTable("cap_tien", {
@@ -554,6 +563,9 @@ export type InsertChiPhiThucTe = z.infer<typeof insertChiPhiThucTeSchema>;
 export const insertChiPhiTheoHopDongSchema = createInsertSchema(chiPhiTheoHopDong).omit({ id: true });
 export type InsertChiPhiTheoHopDong = z.infer<typeof insertChiPhiTheoHopDongSchema>;
 
+export const insertSystemSettingsSchema = createInsertSchema(systemSettings).omit({ id: true });
+export type InsertSystemSettings = z.infer<typeof insertSystemSettingsSchema>;
+
 export type LoaiHopDong = typeof loaiHopDong.$inferSelect;
 export type CanBo = typeof canBo.$inferSelect;
 export type NhaCungCap = typeof nhaCungCap.$inferSelect;
@@ -589,3 +601,4 @@ export type ThuTinDung = typeof thuTinDung.$inferSelect;
 export type LoaiChiPhi = typeof loaiChiPhi.$inferSelect;
 export type ChiPhiThucTe = typeof chiPhiThucTe.$inferSelect;
 export type ChiPhiTheoHopDong = typeof chiPhiTheoHopDong.$inferSelect;
+export type SystemSettings = typeof systemSettings.$inferSelect;

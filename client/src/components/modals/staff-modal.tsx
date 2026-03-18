@@ -18,6 +18,13 @@ import { InsertCanBo, insertCanBoSchema, CanBo } from "@shared/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useEffect, useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function imageToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -51,6 +58,8 @@ export default function StaffModal({
       ten: "",
       chucVu: "",
       anh: "",
+      soDienThoai: "",
+      trangThai: "Đang làm việc",
     },
   });
 
@@ -60,6 +69,8 @@ export default function StaffModal({
         ten: staff.ten || "",
         chucVu: staff.chucVu || "",
         anh: staff.anh || "",
+        soDienThoai: staff.soDienThoai || "",
+        trangThai: staff.trangThai || "Đang làm việc",
       });
     }
   }, [staff]);
@@ -122,7 +133,11 @@ export default function StaffModal({
                 <FormItem>
                   <FormLabel>Tên cán bộ *</FormLabel>
                   <FormControl>
-                    <Input placeholder="Nhập tên cán bộ" {...field} />
+                    <Input
+                      placeholder="Nhập tên cán bộ"
+                      {...field}
+                      value={field.value ?? ""}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -136,8 +151,59 @@ export default function StaffModal({
                 <FormItem>
                   <FormLabel>Chức vụ</FormLabel>
                   <FormControl>
-                    <Input placeholder="Nhập chức vụ" {...field} />
+                    <Input
+                      placeholder="Nhập chức vụ"
+                      {...field}
+                      value={field.value ?? ""}
+                    />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="soDienThoai"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Số điện thoại</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="VD: 0912 345 678"
+                      {...field}
+                      value={field.value ?? ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="trangThai"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Trạng thái</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value || "Đang làm việc"}
+                    value={field.value || "Đang làm việc"}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Chọn trạng thái" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Đang làm việc">
+                        Đang làm việc
+                      </SelectItem>
+                      <SelectItem value="Đã phục viên">Đã phục viên</SelectItem>
+                      <SelectItem value="Chuyển phòng">Chuyển phòng</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

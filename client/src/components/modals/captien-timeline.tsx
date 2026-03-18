@@ -49,7 +49,7 @@ export const CapTienTimeline: React.FC<Props> = ({
   return (
     <div className="mt-8">
       <h3 className="text-lg font-semibold mb-3 flex items-center">
-        💵 Lịch sử cấp tiền ({filteredCapTien.length} lần)
+        💵 Cấp tiền ({filteredCapTien.length} lần)
       </h3>
 
       {isLoading ? (

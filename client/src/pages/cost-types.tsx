@@ -20,6 +20,7 @@ import {
     Search,
     Edit,
     Trash2,
+    Tag,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -27,18 +28,18 @@ import { LoaiChiPhi } from "@shared/schema";
 import CostTypeModal from "@/components/modals/cost-type-modal";
 
 export default function CostTypesPage() {
-    const [searchTerm, setSearchTerm] = useState("");
-    const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
-    const [selectedRecord, setSelectedRecord] = useState<LoaiChiPhi | null>(null);
+    const [ctSearchTerm, setCtSearchTerm] = useState("");
+    const [ctModalMode, setCtModalMode] = useState<"create" | "edit" | null>(null);
+    const [selectedCostType, setSelectedCostType] = useState<LoaiChiPhi | null>(null);
 
     const { toast } = useToast();
     const queryClient = useQueryClient();
 
-    const { data: costTypes = [], isLoading } = useQuery<LoaiChiPhi[]>({
+    const { data: costTypes = [], isLoading: ctLoading } = useQuery<LoaiChiPhi[]>({
         queryKey: ["/api/loai-chi-phi"],
     });
 
-    const deleteMutation = useMutation({
+    const deleteCostTypeMutation = useMutation({
         mutationFn: async (id: number) => {
             await apiRequest("DELETE", `/api/loai-chi-phi/${id}`);
         },
@@ -48,28 +49,26 @@ export default function CostTypesPage() {
         },
     });
 
-    const handleOpenModal = (mode: "create" | "edit", record?: LoaiChiPhi) => {
-        setModalMode(mode);
-        setSelectedRecord(record || null);
+    const handleOpenCtModal = (mode: "create" | "edit", record?: LoaiChiPhi) => {
+        setCtModalMode(mode);
+        setSelectedCostType(record || null);
     };
-
-    const handleCloseModal = () => {
-        setModalMode(null);
-        setSelectedRecord(null);
+    const handleCloseCtModal = () => {
+        setCtModalMode(null);
+        setSelectedCostType(null);
     };
-
-    const handleDelete = (id: number) => {
+    const handleDeleteCostType = (id: number) => {
         if (window.confirm("Bạn có chắc chắn muốn xóa loại chi phí này?")) {
-            deleteMutation.mutate(id);
+            deleteCostTypeMutation.mutate(id);
         }
     };
 
-    const filteredRecords = useMemo(() => {
+    const filteredCostTypes = useMemo(() => {
         return costTypes.filter((item) =>
-            item.tenLoai.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            item.maLoai?.toLowerCase().includes(searchTerm.toLowerCase())
+            item.tenLoai.toLowerCase().includes(ctSearchTerm.toLowerCase()) ||
+            item.maLoai?.toLowerCase().includes(ctSearchTerm.toLowerCase())
         );
-    }, [costTypes, searchTerm]);
+    }, [costTypes, ctSearchTerm]);
 
     return (
         <div className="flex h-screen overflow-hidden">
@@ -77,13 +76,16 @@ export default function CostTypesPage() {
             <div className="flex-1 flex flex-col overflow-hidden">
                 <Header
                     title="Quản lý Loại chi phí"
-                    subtitle="Quản lý danh mục các loại chi phí thực tế và theo hợp đồng"
+                    subtitle="Quản lý danh mục loại chi phí sử dụng trong hệ thống"
                 />
                 <main className="flex-1 overflow-auto p-6">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                            <CardTitle>Danh sách Loại chi phí</CardTitle>
-                            <Button onClick={() => handleOpenModal("create")}>
+                            <CardTitle className="flex items-center gap-2">
+                                <Tag className="w-5 h-5 text-primary" />
+                                Danh sách Loại chi phí
+                            </CardTitle>
+                            <Button onClick={() => handleOpenCtModal("create")}>
                                 <Plus className="w-4 h-4 mr-2" />
                                 Thêm loại chi phí
                             </Button>
@@ -95,54 +97,56 @@ export default function CostTypesPage() {
                                     <Input
                                         placeholder="Tìm theo mã, tên loại..."
                                         className="pl-9"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        value={ctSearchTerm}
+                                        onChange={(e) => setCtSearchTerm(e.target.value)}
                                     />
                                 </div>
                             </div>
 
-                            <div className="rounded-md border">
+                            <div className="rounded-md border shadow-sm">
                                 <Table>
-                                    <TableHeader>
+                                    <TableHeader className="bg-slate-50">
                                         <TableRow>
-                                            <TableHead className="w-[150px]">Mã loại</TableHead>
-                                            <TableHead>Tên loại chi phí</TableHead>
-                                            <TableHead>Ghi chú</TableHead>
-                                            <TableHead className="text-right w-[120px]">Thao tác</TableHead>
+                                            <TableHead className="w-[150px] font-bold">Mã loại</TableHead>
+                                            <TableHead className="font-bold">Tên loại chi phí</TableHead>
+                                            <TableHead className="font-bold">Ghi chú</TableHead>
+                                            <TableHead className="text-right w-[120px] font-bold">Thao tác</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {isLoading ? (
+                                        {ctLoading ? (
                                             <TableRow>
                                                 <TableCell colSpan={4} className="text-center py-10">
                                                     Đang tải dữ liệu...
                                                 </TableCell>
                                             </TableRow>
-                                        ) : filteredRecords.length === 0 ? (
+                                        ) : filteredCostTypes.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={4} className="text-center py-10">
+                                                <TableCell colSpan={4} className="text-center py-10 text-slate-400">
                                                     Chưa có dữ liệu loại chi phí
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
-                                            filteredRecords.map((item) => (
-                                                <TableRow key={item.id}>
+                                            filteredCostTypes.map((item) => (
+                                                <TableRow key={item.id} className="hover:bg-slate-50 transition-colors">
                                                     <TableCell className="font-medium text-blue-600">{item.maLoai || "-"}</TableCell>
-                                                    <TableCell className="font-medium">{item.tenLoai}</TableCell>
+                                                    <TableCell className="font-medium text-slate-900">{item.tenLoai}</TableCell>
                                                     <TableCell className="text-slate-500">{item.ghiChu || "-"}</TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="flex justify-end space-x-1">
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
-                                                                onClick={() => handleOpenModal("edit", item)}
+                                                                className="hover:bg-blue-50 hover:text-blue-600"
+                                                                onClick={() => handleOpenCtModal("edit", item)}
                                                             >
                                                                 <Edit className="w-4 h-4 text-blue-500" />
                                                             </Button>
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
-                                                                onClick={() => handleDelete(item.id)}
+                                                                className="hover:bg-red-50 hover:text-red-600"
+                                                                onClick={() => handleDeleteCostType(item.id)}
                                                             >
                                                                 <Trash2 className="w-4 h-4 text-red-500" />
                                                             </Button>
@@ -159,12 +163,13 @@ export default function CostTypesPage() {
                 </main>
             </div>
 
-            {modalMode && (
+            {/* Modal Loại chi phí */}
+            {ctModalMode && (
                 <CostTypeModal
-                    isOpen={!!modalMode}
-                    onClose={handleCloseModal}
-                    mode={modalMode}
-                    record={selectedRecord}
+                    isOpen={!!ctModalMode}
+                    onClose={handleCloseCtModal}
+                    mode={ctModalMode}
+                    record={selectedCostType}
                 />
             )}
         </div>

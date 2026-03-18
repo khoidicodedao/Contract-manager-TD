@@ -12,6 +12,11 @@ function createTables() {
 
   // Create all tables
   sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS system_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS loai_hop_dong (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       ten TEXT NOT NULL
@@ -25,7 +30,8 @@ function createTables() {
       email TEXT,
       dia_chi TEXT,
       mo_ta TEXT,
-      anh TEXT
+      anh TEXT,
+      trang_thai TEXT
     );
     
     CREATE TABLE IF NOT EXISTS nha_cung_cap (
@@ -430,6 +436,19 @@ function addMissingColumns() {
     }
   });
 
+  const canBoColumns = [
+    { name: "trang_thai", type: "TEXT" },
+  ];
+
+  canBoColumns.forEach((col) => {
+    try {
+      sqlite.exec(`ALTER TABLE can_bo ADD COLUMN ${col.name} ${col.type}`);
+      console.log(`Added column ${col.name} to can_bo table`);
+    } catch (e) {
+      // Column might already exist
+    }
+  });
+
   try {
     sqlite.exec(`ALTER TABLE bao_lanh ADD COLUMN file_scan TEXT`);
     console.log(`Added column file_scan to bao_lanh table`);
@@ -439,6 +458,21 @@ function addMissingColumns() {
     sqlite.exec(`ALTER TABLE thu_tin_dung ADD COLUMN file_scan TEXT`);
     console.log(`Added column file_scan to thu_tin_dung table`);
   } catch (e) { }
+
+  try {
+    sqlite.exec(`ALTER TABLE buoc_thuc_hien ADD COLUMN canh_bao INTEGER`);
+    console.log(`Added column canh_bao to buoc_thuc_hien table`);
+  } catch (e) { }
+
+  try {
+    sqlite.exec(`ALTER TABLE buoc_thuc_hien ADD COLUMN thu_tu INTEGER`);
+    console.log(`Added column thu_tu to buoc_thuc_hien table`);
+  } catch (e) { }
+
+  try {
+    sqlite.exec(`ALTER TABLE buoc_thuc_hien ADD COLUMN can_bo_phu_trach_id INTEGER`);
+    console.log(`Added column can_bo_phu_trach_id to buoc_thuc_hien table`);
+  } catch (e) { }
 }
 
 // Initialize database with sample data
@@ -447,6 +481,22 @@ export async function initializeDatabase() {
 
   // Create tables first
   createTables();
+
+  // Seed default system settings
+  const defaultSettings = [
+    { key: "USER_NAME", value: "Ngô Văn Khang" },
+    { key: "USER_ROLE", value: "Quản lý dự án / Vaxuco" },
+    { key: "USER_PHOTO", value: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&h=100" },
+    { key: "DEVELOPER_PHOTO", value: "/placeholder-logo.png" }, // Default logo path
+  ];
+
+  for (const s of defaultSettings) {
+    try {
+      sqlite.prepare("INSERT OR IGNORE INTO system_settings (key, value) VALUES (?, ?)").run(s.key, s.value);
+    } catch (e) {
+      console.error(`Error seeding setting ${s.key}:`, e);
+    }
+  }
 
   // Migrate schema for existing tables
   addMissingColumns();

@@ -138,6 +138,41 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
+  // ─── Cài đặt hệ thống ────────────────────────────────────────────────────
+  app.get("/api/settings", async (req, res) => {
+    try {
+      const items = await db.select().from(schema.systemSettings);
+      // Chuyển array thành object { key: value }
+      const settings = items.reduce((acc: any, item) => {
+        acc[item.key] = item.value;
+        return acc;
+      }, {});
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  app.post("/api/settings", async (req, res) => {
+    try {
+      const settings = req.body; // { key: value }
+      for (const [key, value] of Object.entries(settings)) {
+        await db
+          .insert(schema.systemSettings)
+          .values({ key, value: String(value) })
+          .onConflictDoUpdate({
+            target: schema.systemSettings.key,
+            set: { value: String(value) },
+          });
+      }
+      res.json({ message: "Cập nhật cài đặt thành công" });
+    } catch (error) {
+      console.error("Error updating settings:", error);
+      res.status(500).json({ error: "Lỗi khi cập nhật cài đặt" });
+    }
+  });
+
   // ─── Hợp đồng tiến độ ────────────────────────────────────────────────────
   app.get("/api/hop-dong-tien-do", async (req, res) => {
     try {

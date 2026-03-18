@@ -35,6 +35,13 @@ import { Eye, Edit, Trash2, Search, Plus, User } from "lucide-react";
 import { CanBo, insertCanBoSchema, InsertCanBo } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function imageToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -65,6 +72,7 @@ export default function Staff() {
       chucVu: "",
       anh: "",
       soDienThoai: "", // ➜ đã có sẵn trong defaultValues
+      trangThai: "Đang làm việc",
     },
   });
 
@@ -213,6 +221,7 @@ export default function Staff() {
                       <TableRow>
                         <TableHead>Cán bộ</TableHead>
                         <TableHead>Chức vụ</TableHead>
+                        <TableHead>Trạng thái</TableHead>
                         <TableHead>Số điện thoại</TableHead> {/* ➜ Cột mới */}
                         <TableHead></TableHead>
                       </TableRow>
@@ -247,6 +256,29 @@ export default function Staff() {
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                               {member.chucVu || "Chưa xác định"}
                             </span>
+                          </TableCell>
+
+                          <TableCell>
+                            {member.trangThai === "Đang làm việc" && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Đang làm việc
+                              </span>
+                            )}
+                            {member.trangThai === "Đã phục viên" && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                Đã phục viên
+                              </span>
+                            )}
+                            {member.trangThai === "Chuyển phòng" && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                Chuyển phòng
+                              </span>
+                            )}
+                            {!member.trangThai && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                                —
+                              </span>
+                            )}
                           </TableCell>
 
                           {/* ➜ Hiển thị số điện thoại */}
@@ -320,7 +352,7 @@ export default function Staff() {
                   <FormItem>
                     <FormLabel>Tên cán bộ *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Nhập tên cán bộ" {...field} />
+                      <Input placeholder="Nhập tên cán bộ" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -334,7 +366,11 @@ export default function Staff() {
                   <FormItem>
                     <FormLabel>Chức vụ</FormLabel>
                     <FormControl>
-                      <Input placeholder="Nhập chức vụ" {...field} />
+                      <Input
+                        placeholder="Nhập chức vụ"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -349,8 +385,44 @@ export default function Staff() {
                   <FormItem>
                     <FormLabel>Số điện thoại</FormLabel>
                     <FormControl>
-                      <Input placeholder="VD: 0912 345 678" {...field} />
+                      <Input
+                        placeholder="VD: 0912 345 678"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="trangThai"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Trạng thái</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value || "Đang làm việc"}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn trạng thái" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Đang làm việc">
+                          Đang làm việc
+                        </SelectItem>
+                        <SelectItem value="Đã phục viên">
+                          Đã phục viên
+                        </SelectItem>
+                        <SelectItem value="Chuyển phòng">
+                          Chuyển phòng
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -366,6 +438,7 @@ export default function Staff() {
                       <Input
                         placeholder="https://example.com/avatar.jpg"
                         {...field}
+                        value={field.value ?? ""}
                       />
                     </FormControl>
                     <FormMessage />

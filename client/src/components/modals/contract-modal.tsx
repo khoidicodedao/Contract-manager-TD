@@ -497,9 +497,26 @@ export default function ContractModal({
                           <SelectItem key={item.id} value={item.id.toString()}>
                             <div className="flex flex-col">
                               <span className="font-medium">{item.ten}</span>
-                              <span className="text-xs text-gray-500">
-                                {item.chucVu}
-                              </span>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-xs text-gray-500">
+                                  {item.chucVu}
+                                </span>
+                                {item.trangThai === "Đang làm việc" && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-800">
+                                    Đang làm việc
+                                  </span>
+                                )}
+                                {item.trangThai === "Đã phục viên" && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-800">
+                                    Đã phục viên
+                                  </span>
+                                )}
+                                {item.trangThai === "Chuyển phòng" && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-yellow-100 text-yellow-800">
+                                    Chuyển phòng
+                                  </span>
+                                )}
+                              </div>
                               {item.email && (
                                 <span className="text-xs text-gray-400">
                                   {item.email}

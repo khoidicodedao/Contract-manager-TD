@@ -150,7 +150,7 @@ const ContractProgressTimeline: React.FC<Props> = ({
 
       {/* Timeline cấp tiền */}
       <h3 className="text-lg font-semibold mb-3 flex items-center mt-8">
-        💵 Lịch sử cấp tiền ({filteredCapTien.length} lần)
+        💵 Cấp tiền ({filteredCapTien.length} lần)
       </h3>
 
       {isLoading ? (

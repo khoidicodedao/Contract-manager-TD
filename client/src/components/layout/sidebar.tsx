@@ -19,6 +19,7 @@ import {
   Plane,
   Shield,
   Stamp,
+  Tag,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { HopDong } from "@shared/schema";
@@ -66,6 +67,12 @@ export function Sidebar() {
   });
   const { data: plannedCosts = [] } = useQuery<any[]>({
     queryKey: ["/api/chi-phi-theo-hop-dong"],
+  });
+  const { data: costTypes = [] } = useQuery<any[]>({
+    queryKey: ["/api/loai-chi-phi"],
+  });
+  const { data: settings = {} } = useQuery<Record<string, string>>({
+    queryKey: ["/api/settings"],
   });
   const navigationGroups = [
     {
@@ -191,6 +198,14 @@ export function Sidebar() {
           color: "text-blue-500",
         },
         {
+          name: "Loại chi phí",
+          href: "/loai-chi-phi",
+          icon: Tag,
+          current: false,
+          badge: costTypes.length > 0 ? costTypes.length : "",
+          color: "text-amber-600",
+        },
+        {
           name: "Chi phí thực tế",
           href: "/chi-phi-thuc-te",
           icon: DollarSign,
@@ -277,8 +292,12 @@ export function Sidebar() {
         style={{ paddingTop: "40px" }}
       >
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-            <File className="text-white text-lg" />
+          <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center overflow-hidden border border-primary/20">
+            {settings.DEVELOPER_PHOTO ? (
+              <img src={settings.DEVELOPER_PHOTO} alt="Logo" className="w-full h-full object-contain p-1" />
+            ) : (
+              <File className="text-primary text-lg" />
+            )}
           </div>
           <div>
             <h1 className="text-lg font-semibold text-slate-900">
@@ -319,26 +338,28 @@ export function Sidebar() {
       </nav>
 
       {/* User Profile */}
-      {/* <div className="p-4 border-t border-slate-200">
+      <div className="p-4 border-t border-slate-200 bg-slate-50/50">
         <div className="flex items-center space-x-3">
           <img
-            src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&h=100"
+            src={settings.USER_PHOTO || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=128&h=128"}
             alt="Avatar người dùng"
-            className="w-10 h-10 rounded-full"
+            className="w-10 h-10 rounded-full border border-slate-200"
           />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-900 truncate">
-              Ngô Văn Khang
+            <p className="text-sm font-bold text-slate-900 truncate">
+              {settings.USER_NAME || "Người dùng"}
             </p>
-            <p className="text-xs text-slate-500 truncate">
-              Quản lý dự án / Vaxuco
+            <p className="text-[10px] text-slate-500 truncate uppercase tracking-wider font-semibold">
+              {settings.USER_ROLE || "Thành viên"}
             </p>
           </div>
-          <button className="p-2 text-slate-400 hover:text-slate-600">
-            <Settings className="text-sm" />
-          </button>
+          <Link href="/cai-dat">
+            <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-full transition-colors">
+              <Settings className="w-4 h-4" />
+            </button>
+          </Link>
         </div>
-      </div> */}
+      </div>
     </div>
   );
 }
