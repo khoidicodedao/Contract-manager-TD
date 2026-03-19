@@ -293,17 +293,13 @@ export function Sidebar() {
       >
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center overflow-hidden border border-primary/20">
-            {settings.DEVELOPER_PHOTO ? (
-              <img src={settings.DEVELOPER_PHOTO} alt="Logo" className="w-full h-full object-contain p-1" />
-            ) : (
-              <File className="text-primary text-lg" />
-            )}
+            <File className="text-primary text-lg" />
           </div>
           <div>
             <h1 className="text-lg font-semibold text-slate-900">
-              Quản lý dự án
+              {settings.SYSTEM_NAME || "Quản lý dự án"}
             </h1>
-            {/* <p className="text-xs text-slate-500">Quản lý hợp đồng</p> */}
+            <p className="text-xs text-slate-500">Quản lý hợp đồng</p>
           </div>
         </div>
       </div>
@@ -337,29 +333,6 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* User Profile */}
-      <div className="p-4 border-t border-slate-200 bg-slate-50/50">
-        <div className="flex items-center space-x-3">
-          <img
-            src={settings.USER_PHOTO || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=128&h=128"}
-            alt="Avatar người dùng"
-            className="w-10 h-10 rounded-full border border-slate-200"
-          />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-slate-900 truncate">
-              {settings.USER_NAME || "Người dùng"}
-            </p>
-            <p className="text-[10px] text-slate-500 truncate uppercase tracking-wider font-semibold">
-              {settings.USER_ROLE || "Thành viên"}
-            </p>
-          </div>
-          <Link href="/cai-dat">
-            <button className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-full transition-colors">
-              <Settings className="w-4 h-4" />
-            </button>
-          </Link>
-        </div>
-      </div>
     </div>
   );
 }

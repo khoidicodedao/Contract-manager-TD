@@ -2001,9 +2001,28 @@ export async function registerRoutes(app: Express): Promise<void> {
           chuDauTu: {
             ten: schema.chuDauTu.ten,
           },
-          capTien: schema.capTien,
-          baoLanh: schema.baoLanh,
-          thuTinDung: schema.thuTinDung,
+          capTien: {
+            id: schema.capTien.id,
+            ngayCap: schema.capTien.ngayCap,
+            soTien: schema.capTien.soTien,
+            tyGia: schema.capTien.tyGia,
+            ghiChu: schema.capTien.ghiChu,
+            loaiTienTen: schema.loaiTien.ten,
+          },
+          thanhToan: {
+            id: schema.thanhToan.id,
+            soTien: schema.thanhToan.soTien,
+            daThanhToan: schema.thanhToan.daThanhToan,
+            noiDung: schema.thanhToan.noiDung,
+            loaiTienTen: sql<string>`(SELECT ten FROM loai_tien WHERE id = ${schema.thanhToan.loaiTienId})`,
+            hinhThucTen: sql<string>`(SELECT ten FROM loai_hinh_thuc_thanh_toan WHERE id = ${schema.thanhToan.loaiHinhThucThanhToanId})`,
+          },
+          buocThucHien: {
+            id: schema.buocThucHien.id,
+            ten: schema.buocThucHien.ten,
+            ngayBatDau: schema.buocThucHien.ngayBatDau,
+            ngayKetThuc: schema.buocThucHien.ngayKetThuc,
+          },
         })
         .from(schema.hopDong)
         .leftJoin(schema.canBo, eq(schema.hopDong.canBoId, schema.canBo.id))
@@ -2020,12 +2039,16 @@ export async function registerRoutes(app: Express): Promise<void> {
           eq(schema.capTien.hopDongId, schema.hopDong.id)
         )
         .leftJoin(
-          schema.baoLanh,
-          eq(schema.baoLanh.hopDongId, schema.hopDong.id)
+          schema.loaiTien,
+          eq(schema.capTien.loaiTienId, schema.loaiTien.id)
         )
         .leftJoin(
-          schema.thuTinDung,
-          eq(schema.thuTinDung.hopDongId, schema.hopDong.id)
+          schema.thanhToan,
+          eq(schema.thanhToan.hopDongId, schema.hopDong.id)
+        )
+        .leftJoin(
+          schema.buocThucHien,
+          eq(schema.buocThucHien.hopDongId, schema.hopDong.id)
         );
 
       // Gom các bản ghi vào từng hợp đồng, loại bỏ trùng lặp
@@ -2039,19 +2062,19 @@ export async function registerRoutes(app: Express): Promise<void> {
               nhaCungCap: row.nhaCungCap,
               chuDauTu: row.chuDauTu,
               capTien: [],
-              baoLanh: [],
-              thuTinDung: [],
+              thanhToan: [],
+              buocThucHien: [],
             };
           }
 
           if (row.capTien?.id && !acc[hdId].capTien.some((i: any) => i.id === row.capTien.id)) {
             acc[hdId].capTien.push(row.capTien);
           }
-          if (row.baoLanh?.id && !acc[hdId].baoLanh.some((i: any) => i.id === row.baoLanh.id)) {
-            acc[hdId].baoLanh.push(row.baoLanh);
+          if (row.thanhToan?.id && !acc[hdId].thanhToan.some((i: any) => i.id === row.thanhToan.id)) {
+            acc[hdId].thanhToan.push(row.thanhToan);
           }
-          if (row.thuTinDung?.id && !acc[hdId].thuTinDung.some((i: any) => i.id === row.thuTinDung.id)) {
-            acc[hdId].thuTinDung.push(row.thuTinDung);
+          if (row.buocThucHien?.id && !acc[hdId].buocThucHien.some((i: any) => i.id === row.buocThucHien.id)) {
+            acc[hdId].buocThucHien.push(row.buocThucHien);
           }
 
           return acc;

@@ -5,8 +5,11 @@ import getCountryFlag from "@/lib/getCountryFlag";
 export default function Footer() {
   const queryClient = useQueryClient();
 
-  const { data: staff = [], isLoading } = useQuery<CanBo[]>({
+  const { data: staff = [], isLoading: staffLoading } = useQuery<CanBo[]>({
     queryKey: ["/api/can-bo"],
+  });
+  const { data: settings = {} } = useQuery<Record<string, string>>({
+    queryKey: ["/api/settings"],
   });
   const { data: suppliers = [] } = useQuery<NhaCungCap[]>({
     queryKey: ["/api/nha-cung-cap"],
@@ -20,13 +23,15 @@ export default function Footer() {
       <div className="w-full flex flex-row sm:flex-row items-center justify-around space-y-2 sm:space-y-0 sm:space-x-4 text-center">
         <div className="w-1/3 flex items-center space-x-3">
           <img
-            src="https://scontent.fhan3-3.fna.fbcdn.net/v/t39.30808-6/433497264_3742222032771736_2372411655334707575_n.jpg?_nc_cat=101&ccb=1-7&_nc_sid=6ee11a&_nc_eui2=AeHJezAzXTR8BPYaGOh8ebltXilcilhvP8NeKVyKWG8_w0pp4TzjCLgX1tzPR2CxuEGo3P6imblRa9SLrdeFZIby&_nc_ohc=WjUU9YKLwQwQ7kNvwGY_yeE&_nc_oc=Adm14I_4y6toeRB9omf0GSTN9RhfT3GMIjNuhikynhb8kla7I1EFAryRuXlXAwOZM8s&_nc_zt=23&_nc_ht=scontent.fhan3-3.fna&_nc_gid=nVwa5F9tLZfCokZ8r0zWOQ&oh=00_Afadn7H5NSP5leWcvZWIorKFpNfF_MuXmQ6RTMk6P3SSrA&oe=68D02A70https://scontent.fhan3-3.fna.fbcdn.net/v/t39.30808-6/433497264_3742222032771736_2372411655334707575_n.jpg?_nc_cat=101&ccb=1-7&_nc_sid=6ee11a&_nc_eui2=AeHJezAzXTR8BPYaGOh8ebltXilcilhvP8NeKVyKWG8_w0pp4TzjCLgX1tzPR2CxuEGo3P6imblRa9SLrdeFZIby&_nc_ohc=WjUU9YKLwQwQ7kNvwGY_yeE&_nc_oc=Adm14I_4y6toeRB9omf0GSTN9RhfT3GMIjNuhikynhb8kla7I1EFAryRuXlXAwOZM8s&_nc_zt=23&_nc_ht=scontent.fhan3-3.fna&_nc_gid=nVwa5F9tLZfCokZ8r0zWOQ&oh=00_Afadn7H5NSP5leWcvZWIorKFpNfF_MuXmQ6RTMk6P3SSrA&oe=68D02A70"
+            src={settings.DEVELOPER_PHOTO || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=128&h=128"}
             alt="Developer Avatar"
-            className="w-8 h-8 rounded-full"
+            className="w-8 h-8 rounded-full object-cover"
           />
           <div className="text-xs text-slate-500 text-left">
             <p>Developed by</p>
-            <p className="text-slate-700 font-medium">Tran Ngoc Tuan</p>
+            <p className="text-slate-700 font-medium">
+              {settings.DEVELOPER_NAME || "Tran Ngoc Tuan"}
+            </p>
           </div>
         </div>
 

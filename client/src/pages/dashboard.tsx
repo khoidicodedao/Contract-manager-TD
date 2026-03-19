@@ -21,7 +21,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { FileText, Package, CreditCard, Clock, Globe } from "lucide-react";
+import { FileText, Package, CreditCard, Clock, Globe, BarChart3 } from "lucide-react";
 import WorldMap from "@/components/charts/world-map";
 import React from "react";
 
@@ -90,6 +90,7 @@ export default function Dashboard() {
         <Header
           title="Tổng quan hệ thống"
           subtitle="Theo dõi tình hình tổng thể của các hợp đồng và dự án"
+          icon={BarChart3}
           onCreateContract={() => {}}
         />
 

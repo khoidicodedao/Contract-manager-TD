@@ -1,24 +1,31 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { LucideIcon, Search, Settings as SettingsIcon } from "lucide-react";
 import { useSearchContracts } from "@/hooks/use-search-contracts";
 import { Link } from "wouter";
 import NotificationBell from "./notification-bell";
+import { useQuery } from "@tanstack/react-query";
 
 interface HeaderProps {
   title: string;
   subtitle: string;
+  icon?: LucideIcon;
   onCreateContract?: () => void;
 }
 
 export default function Header({
   title,
   subtitle,
+  icon: Icon,
   onCreateContract,
 }: HeaderProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const { data: results, isLoading } = useSearchContracts(debouncedSearch);
+
+  const { data: settings = {} } = useQuery<Record<string, string>>({
+    queryKey: ["/api/settings"],
+  });
 
   // Debounce input (300ms)
   useEffect(() => {
@@ -31,9 +38,16 @@ export default function Header({
   return (
     <header className="bg-white border-b border-slate-200 px-6 py-4 relative z-10">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold text-slate-900">{title}</h2>
-          <p className="text-sm text-slate-600 mt-1">{subtitle}</p>
+        <div className="flex items-center space-x-3">
+          {Icon && (
+            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+              <Icon className="w-6 h-6 text-primary" />
+            </div>
+          )}
+          <div>
+            <h2 className="text-2xl font-semibold text-slate-900">{title}</h2>
+            <p className="text-sm text-slate-600 mt-1">{subtitle}</p>
+          </div>
         </div>
         <div className="flex items-center space-x-3">
           {/* Search */}
@@ -79,21 +93,24 @@ export default function Header({
           <NotificationBell />
 
           {/* User profile */}
-          <div className="flex items-center space-x-3 pl-3 border-l border-slate-200">
-            <img
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&h=100"
-              alt="Avatar người dùng"
-              className="w-9 h-9 rounded-full object-cover ring-2 ring-slate-200"
-            />
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-900 truncate">
-                Quản trị viên
-              </p>
-              <p className="text-xs text-slate-500 truncate">
-                Quản lý dự án / Vaxuco
-              </p>
+          <Link href="/cai-dat">
+            <div className="flex items-center space-x-3 pl-3 border-l border-slate-200 cursor-pointer group hover:bg-slate-50 transition-colors py-1 rounded-md px-2">
+              <img
+                src={settings.USER_PHOTO || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=128&h=128"}
+                alt="Avatar người dùng"
+                className="w-9 h-9 rounded-full object-cover ring-2 ring-slate-200"
+              />
+              <div className="min-w-0 max-w-[150px]">
+                <p className="text-sm font-bold text-slate-900 truncate">
+                  {settings.USER_NAME || "Người dùng"}
+                </p>
+                <p className="text-[10px] text-slate-500 truncate uppercase tracking-wider font-semibold">
+                  {settings.USER_ROLE || "Thành viên"}
+                </p>
+              </div>
+              <SettingsIcon className="w-4 h-4 text-slate-400 group-hover:text-primary transition-colors ml-1" />
             </div>
-          </div>
+          </Link>
         </div>
       </div>
     </header>

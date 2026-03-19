@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import ContractModal from "@/components/modals/contract-modal";
 import ContractViewModal from "@/components/modals/contract-view-modal";
-import { Eye, Edit, Trash2, Search, Filter, Plus } from "lucide-react";
+import { Eye, Edit, Trash2, Search, Filter, Plus, File } from "lucide-react";
 import { HopDong } from "@shared/schema";
 import {
   CONTRACT_STATUS_LABELS,
@@ -151,6 +151,7 @@ export default function Contracts() {
         <Header
           title="Quản lý hợp đồng"
           subtitle="Tạo, chỉnh sửa và theo dõi tất cả hợp đồng"
+          icon={File}
           onCreateContract={() => setIsCreateModalOpen(true)}
         />
 

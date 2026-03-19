@@ -151,6 +151,7 @@ export default function Invoices() {
                 <Header
                     title="Quản lý Hóa đơn"
                     subtitle="Quản lý và tra cứu thông tin hóa đơn theo hợp đồng"
+                    icon={FileText}
                     onCreateContract={() => { }}
                 />
 

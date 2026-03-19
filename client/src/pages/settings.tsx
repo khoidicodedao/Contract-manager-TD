@@ -15,6 +15,7 @@ export default function Settings() {
     const queryClient = useQueryClient();
     const [isRestoring, setIsRestoring] = useState(false);
     const [file, setFile] = useState<File | null>(null);
+    const [tempSettings, setTempSettings] = useState<Record<string, string>>({});
 
     const { data: settings = {}, isLoading: settingsLoading } = useQuery<Record<string, string>>({
         queryKey: ["/api/settings"],
@@ -150,30 +151,98 @@ export default function Settings() {
                                     {/* User Info */}
                                     <div className="space-y-4">
                                         <div className="space-y-2">
-                                            <Label htmlFor="user-name">Họ và tên</Label>
-                                            <Input
-                                                id="user-name"
-                                                placeholder="Nhập họ và tên"
-                                                defaultValue={settings.USER_NAME}
-                                                onBlur={(e) => handleInputChange("USER_NAME", e.target.value)}
-                                            />
+                                            <Label htmlFor="system-name">Tên hệ thống (Sidebar)</Label>
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    id="system-name"
+                                                    placeholder="Ví dụ: Quản lý dự án"
+                                                    value={tempSettings.SYSTEM_NAME ?? settings.SYSTEM_NAME ?? ""}
+                                                    onChange={(e) => setTempSettings(prev => ({ ...prev, SYSTEM_NAME: e.target.value }))}
+                                                />
+                                                <Button 
+                                                    size="sm" 
+                                                    variant="outline"
+                                                    disabled={updateSettingsMutation.isPending || tempSettings.SYSTEM_NAME === undefined}
+                                                    onClick={() => {
+                                                        if (tempSettings.SYSTEM_NAME !== undefined) {
+                                                            handleInputChange("SYSTEM_NAME", tempSettings.SYSTEM_NAME);
+                                                            setTempSettings(prev => {
+                                                                const { SYSTEM_NAME, ...rest } = prev;
+                                                                return rest;
+                                                            });
+                                                        }
+                                                    }}
+                                                >
+                                                    Lưu
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2 border-t pt-4">
+                                            <Label htmlFor="user-name">Họ và tên người dùng</Label>
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    id="user-name"
+                                                    placeholder="Nhập họ và tên"
+                                                    value={tempSettings.USER_NAME ?? settings.USER_NAME ?? ""}
+                                                    onChange={(e) => setTempSettings(prev => ({ ...prev, USER_NAME: e.target.value }))}
+                                                />
+                                                <Button 
+                                                    size="sm" 
+                                                    variant="outline"
+                                                    disabled={updateSettingsMutation.isPending || tempSettings.USER_NAME === undefined}
+                                                    onClick={() => {
+                                                        if (tempSettings.USER_NAME !== undefined) {
+                                                            handleInputChange("USER_NAME", tempSettings.USER_NAME);
+                                                            setTempSettings(prev => {
+                                                                const { USER_NAME, ...rest } = prev;
+                                                                return rest;
+                                                            });
+                                                        }
+                                                    }}
+                                                >
+                                                    Lưu
+                                                </Button>
+                                            </div>
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="user-role">Chức vụ / Đơn vị</Label>
-                                            <Input
-                                                id="user-role"
-                                                placeholder="Nhập chức vụ"
-                                                defaultValue={settings.USER_ROLE}
-                                                onBlur={(e) => handleInputChange("USER_ROLE", e.target.value)}
-                                            />
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    id="user-role"
+                                                    placeholder="Nhập chức vụ"
+                                                    value={tempSettings.USER_ROLE ?? settings.USER_ROLE ?? ""}
+                                                    onChange={(e) => setTempSettings(prev => ({ ...prev, USER_ROLE: e.target.value }))}
+                                                />
+                                                <Button 
+                                                    size="sm" 
+                                                    variant="outline"
+                                                    disabled={updateSettingsMutation.isPending || tempSettings.USER_ROLE === undefined}
+                                                    onClick={() => {
+                                                        if (tempSettings.USER_ROLE !== undefined) {
+                                                            handleInputChange("USER_ROLE", tempSettings.USER_ROLE);
+                                                            setTempSettings(prev => {
+                                                                const { USER_ROLE, ...rest } = prev;
+                                                                return rest;
+                                                            });
+                                                        }
+                                                    }}
+                                                >
+                                                    Lưu
+                                                </Button>
+                                            </div>
                                         </div>
                                     </div>
 
                                     {/* Photo Uploads */}
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
+                                        <div className="space-y-2 text-center">
                                             <Label>Ảnh đại diện (User)</Label>
-                                            <div className="relative group w-32 h-32 rounded-full overflow-hidden border-2 border-slate-200 bg-slate-100 mx-auto">
+                                            <div className="relative group w-32 h-32 rounded-full overflow-hidden border-2 border-slate-200 bg-slate-100 mx-auto mt-2">
+                                                {updateSettingsMutation.isPending && (
+                                                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10">
+                                                        <RefreshCw className="w-6 h-6 text-white animate-spin" />
+                                                    </div>
+                                                )}
                                                 <img
                                                     src={settings.USER_PHOTO || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=128&h=128"}
                                                     alt="User Avatar"
@@ -186,14 +255,31 @@ export default function Settings() {
                                                         className="hidden"
                                                         accept="image/*"
                                                         onChange={handleImageUpload("USER_PHOTO")}
+                                                        disabled={updateSettingsMutation.isPending}
                                                     />
                                                 </label>
                                             </div>
+                                            {settings.USER_PHOTO && (
+                                                <Button 
+                                                    variant="link" 
+                                                    size="sm" 
+                                                    className="text-red-500 h-auto p-0 mt-1"
+                                                    onClick={() => handleInputChange("USER_PHOTO", "")}
+                                                    disabled={updateSettingsMutation.isPending}
+                                                >
+                                                    Xóa ảnh
+                                                </Button>
+                                            )}
                                         </div>
 
-                                        <div className="space-y-2">
-                                            <Label>Logo hệ thống (Dev)</Label>
-                                            <div className="relative group w-32 h-32 rounded-lg overflow-hidden border-2 border-slate-200 bg-white mx-auto flex items-center justify-center p-2">
+                                        <div className="space-y-4 text-center">
+                                            <Label>Logo & Thông tin Developer</Label>
+                                            <div className="relative group w-32 h-32 rounded-lg overflow-hidden border-2 border-slate-200 bg-white mx-auto flex items-center justify-center p-2 mt-2">
+                                                {updateSettingsMutation.isPending && (
+                                                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-10">
+                                                        <RefreshCw className="w-6 h-6 text-white animate-spin" />
+                                                    </div>
+                                                )}
                                                 {settings.DEVELOPER_PHOTO ? (
                                                     <img
                                                         src={settings.DEVELOPER_PHOTO}
@@ -212,8 +298,49 @@ export default function Settings() {
                                                         className="hidden"
                                                         accept="image/*"
                                                         onChange={handleImageUpload("DEVELOPER_PHOTO")}
+                                                        disabled={updateSettingsMutation.isPending}
                                                     />
                                                 </label>
+                                            </div>
+                                            {settings.DEVELOPER_PHOTO && (
+                                                <Button 
+                                                    variant="link" 
+                                                    size="sm" 
+                                                    className="text-red-500 h-auto p-0 mt-1"
+                                                    onClick={() => handleInputChange("DEVELOPER_PHOTO", "")}
+                                                    disabled={updateSettingsMutation.isPending}
+                                                >
+                                                    Xóa ảnh
+                                                </Button>
+                                            )}
+                                            <div className="mt-4 space-y-2 text-left">
+                                                <Label htmlFor="developer-name" className="text-xs">Tên Developer</Label>
+                                                <div className="flex gap-2">
+                                                    <Input
+                                                        id="developer-name"
+                                                        placeholder="Nhập tên"
+                                                        value={tempSettings.DEVELOPER_NAME ?? settings.DEVELOPER_NAME ?? ""}
+                                                        onChange={(e) => setTempSettings(prev => ({ ...prev, DEVELOPER_NAME: e.target.value }))}
+                                                        className="h-8 text-xs"
+                                                    />
+                                                    <Button 
+                                                        size="sm" 
+                                                        variant="outline"
+                                                        className="h-8 px-2"
+                                                        disabled={updateSettingsMutation.isPending || tempSettings.DEVELOPER_NAME === undefined}
+                                                        onClick={() => {
+                                                            if (tempSettings.DEVELOPER_NAME !== undefined) {
+                                                                handleInputChange("DEVELOPER_NAME", tempSettings.DEVELOPER_NAME);
+                                                                setTempSettings(prev => {
+                                                                    const { DEVELOPER_NAME, ...rest } = prev;
+                                                                    return rest;
+                                                                });
+                                                            }
+                                                        }}
+                                                    >
+                                                        Lưu
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

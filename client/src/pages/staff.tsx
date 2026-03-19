@@ -169,6 +169,7 @@ export default function Staff() {
         <Header
           title="Quản lý cán bộ"
           subtitle="Quản lý thông tin và phân quyền cán bộ"
+          icon={User}
           onCreateContract={() => setIsCreateModalOpen(true)}
         />
 

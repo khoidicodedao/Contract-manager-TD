@@ -232,8 +232,7 @@ export const hopDongTienDo = sqliteTable("hop_dong_tien_do", {
 
 // Cài đặt hệ thống
 export const systemSettings = sqliteTable("system_settings", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  key: text("key").unique().notNull(),
+  key: text("key").primaryKey().notNull(),
   value: text("value"),
 });
 
@@ -563,7 +562,7 @@ export type InsertChiPhiThucTe = z.infer<typeof insertChiPhiThucTeSchema>;
 export const insertChiPhiTheoHopDongSchema = createInsertSchema(chiPhiTheoHopDong).omit({ id: true });
 export type InsertChiPhiTheoHopDong = z.infer<typeof insertChiPhiTheoHopDongSchema>;
 
-export const insertSystemSettingsSchema = createInsertSchema(systemSettings).omit({ id: true });
+export const insertSystemSettingsSchema = createInsertSchema(systemSettings);
 export type InsertSystemSettings = z.infer<typeof insertSystemSettingsSchema>;
 
 export type LoaiHopDong = typeof loaiHopDong.$inferSelect;
