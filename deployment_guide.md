@@ -1,69 +1,94 @@
 # Hướng dẫn cài đặt ứng dụng Quản lý Hợp đồng trên máy chủ
 
-Tài liệu này hướng dẫn các bước để triển khai (deploy) ứng dụng từ mã nguồn lên một máy chủ Windows hoặc Linux chạy môi trường Node.js.
+Tài liệu này cung cấp hướng dẫn chi tiết các bước để triển khai (deploy) ứng dụng trên hai hệ điều hành phổ biến: **Windows** và **Ubuntu (Linux)**.
 
-## 1. Yêu cầu hệ thống (Prerequisites)
+---
 
+## PHẦN 1: HƯỚNG DẪN CHO WINDOWS
+
+### 1. Yêu cầu hệ thống
 - **Node.js**: Phiên bản 20.x trở lên.
-- **npm**: Đi kèm với Node.js.
-- **Cơ sở dữ liệu**: SQLite (không cần cài đặt server riêng, chỉ cần thư viện `better-sqlite3`).
-- **Trình quản lý quy trình (Khuyên dùng)**: [PM2](https://pm2.keymetrics.io/) để giữ ứng dụng luôn chạy ngầm.
+- **Git**: (Tùy chọn) Để tải mã nguồn.
 
-## 2. Các bước cài đặt
+### 2. Các bước cài đặt
+1. **Cài đặt thư viện**: Mở CMD/PowerShell tại thư mục dự án và chạy:
+   ```bash
+   npm install
+   ```
+2. **Biên dịch (Build)**:
+   ```bash
+   npm run build
+   ```
+3. **Khởi tạo dữ liệu**:
+   ```bash
+   npm run db:push
+   ```
 
-### Bước 1: Tải mã nguồn và cài đặt thư viện
-Mở terminal tại thư mục dự án và chạy lệnh:
+### 3. Chạy ứng dụng Production (với PM2)
+Để ứng dụng tự khởi động lại khi gặp lỗi hoặc khi reboot máy:
+- Cài đặt PM2: `npm install -g pm2`
+- Chạy ứng dụng: `pm2 start dist/index.js --name "contract-manager"`
+- Lưu trạng thái: `pm2 save`
+
+---
+
+## PHẦN 2: HƯỚNG DẪN CHO UBUNTU (LINUX)
+
+### 1. Cài đặt môi trường ban đầu
+Cập nhật hệ thống và cài đặt các công cụ biên dịch thiết yếu:
 ```bash
-npm install
+sudo apt update
+sudo apt install build-essential python3 curl -y
 ```
 
-### Bước 2: Build ứng dụng
-Ứng dụng cần được biên dịch (build) sang mã máy (JavaScript thuần) để chạy tối ưu trong môi trường production.
+Cài đặt **Node.js 20.x**:
 ```bash
-npm run build
-```
-Sau khi chạy xong, thư mục `dist` sẽ được tạo ra chứa mã nguồn đã build.
-
-### Bước 3: Cấu hình Cơ sở dữ liệu
-Đảm bảo cấu trúc cơ sở dữ liệu SQLite được đồng bộ với mã nguồn:
-```bash
-npm run db:push
-```
-Lệnh này sẽ tạo file [database.sqlite](file:///d:/TD/Contract-manager-TD/database.sqlite) (nếu chưa có) và cập nhật các bảng cần thiết.
-
-## 3. Chạy ứng dụng
-
-### Cách 1: Chạy trực tiếp (để kiểm tra)
-```bash
-npm start
-```
-Ứng dụng sẽ chạy tại cổng **5000** (mặc định). Bạn có thể truy cập qua: `http://<dia-chi-ip>:5000`
-
-### Cách 2: Chạy bằng PM2 (Môi trường Production)
-Cài đặt PM2 nếu chưa có:
-```bash
-npm install -g pm2
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
 ```
 
-Chạy ứng dụng với PM2:
+### 2. Triển khai ứng dụng
+1. **Cài đặt thư viện**: `npm install`
+2. **Biên dịch (Build)**: `npm run build`
+3. **Khởi tạo dữ liệu**: `npm run db:push`
+
+### 3. Quản lý quy trình với PM2
 ```bash
+sudo npm install -g pm2
 pm2 start dist/index.js --name "contract-manager"
-```
-
-Lưu cấu hình để tự động chạy lại khi server khởi động:
-```bash
 pm2 save
 pm2 startup
 ```
+*(Lưu ý: copy câu lệnh do `pm2 startup` trả về và chạy nó để kích hoạt tự động khởi động cùng hệ thống).*
 
-## 4. Lưu ý quan trọng
+### 4. Cấu hình Nginx (Reverse Proxy)
+Để truy cập qua cổng 80 (HTTP) thay vì 5000:
+- Cài đặt: `sudo apt install nginx -y`
+- Tạo file cấu hình: `sudo nano /etc/nginx/sites-available/contract-manager`
+- Nội dung cấu hình:
+  ```nginx
+  server {
+      listen 80;
+      location / {
+          proxy_pass http://localhost:5000;
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection 'upgrade';
+          proxy_set_header Host $host;
+      }
+  }
+  ```
+- Kích hoạt và restart:
+  ```bash
+  sudo ln -s /etc/nginx/sites-available/contract-manager /etc/nginx/sites-enabled/
+  sudo systemctl restart nginx
+  ```
 
-- **Cổng (Port)**: Mặc định ứng dụng chạy ở cổng `5000`. Hãy đảm bảo Firewall của server đã mở cổng này.
-- **Dung lượng File**: Hệ thống đã được cấu hình nhận file (payload) lên đến **50MB**.
-- **Sao lưu**: File [database.sqlite](file:///d:/TD/Contract-manager-TD/database.sqlite) chứa toàn bộ dữ liệu của bạn. Hãy thực hiện sao lưu định kỳ file này.
-- **Biến môi trường**: Nếu cần chạy ở cổng khác, bạn có thể thiết lập biến môi trường `PORT` trước khi chạy (ví dụ: `cross-env PORT=8080 npm start`).
+---
 
-## 5. Cấu trúc thư mục sau khi Build
-- [dist/index.js](file:///d:/TD/Contract-manager-TD/dist/index.js): File thực thi chính của server.
-- `dist/public/`: Thư mục chứa giao diện web (HTML/JS/CSS).
-- `database.sqlite`: File dữ liệu (sinh ra sau khi chạy).
+## LƯU Ý CHUNG CHO CẢ HAI HỆ ĐIỀU HÀNH
+
+- **File dữ liệu**: Toàn bộ dữ liệu nằm trong file [database.sqlite](file:///d:/TD/Contract-manager-TD/database.sqlite) ở thư mục gốc. Hãy sao lưu file này thường xuyên.
+- **Port**: Ứng dụng mặc định chạy ở cổng **5000**.
+- **Upload**: Hệ thống hỗ trợ upload file tối đa **50MB**.
+- **Quyền truy cập**: Đảm bảo folder dự án có quyền ghi để ứng dụng có thể cập nhật file database SQLite.
