@@ -4,8 +4,9 @@ import path, { dirname } from "path";
 import { fileURLToPath } from "url";
 
 // ✅ Thay thế __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// ✅ Thay thế __dirname
+const __filename = typeof import.meta.url !== 'undefined' ? fileURLToPath(import.meta.url) : __filename;
+const __dirname = typeof import.meta.url !== 'undefined' ? dirname(__filename) : __dirname;
 
 // ✅ Giữ nguyên hàm log
 export function log(message: string, source = "express") {
