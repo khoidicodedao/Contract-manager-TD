@@ -20,12 +20,31 @@ import {
   Shield,
   Stamp,
   Tag,
+  LogOut,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { HopDong } from "@shared/schema";
 import { CanBo } from "@shared/schema";
 
 export function Sidebar() {
+  const { data: user } = useQuery<{ id: number; username: string; role: string; phongBanId: number | null }>({
+    queryKey: ["/api/user"],
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => await apiRequest("POST", "/api/logout"),
+    onSuccess: () => {
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+    },
+    onError: () => {
+      // Bệnh viện / dự phòng nếu API có lỗi
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+    }
+  });
+
   const { data: contracts = [] } = useQuery<HopDong[]>({
     queryKey: ["/api/hop-dong"],
   });
@@ -279,6 +298,31 @@ export function Sidebar() {
           current: false,
           color: "text-gray-600",
         },
+        ...(user?.role === "admin"
+          ? [
+              {
+                name: "Phòng ban",
+                href: "/phong-ban",
+                icon: Building2,
+                current: false,
+                color: "text-blue-600",
+              },
+              {
+                name: "Người dùng",
+                href: "/users",
+                icon: Users,
+                current: false,
+                color: "text-indigo-600",
+              },
+              {
+                name: "Lịch sử hoạt động",
+                href: "/audit-logs",
+                icon: FileText,
+                current: false,
+                color: "text-slate-600",
+              },
+            ]
+          : []),
       ],
     },
   ];
@@ -332,6 +376,33 @@ export function Sidebar() {
           </div>
         ))}
       </nav>
+
+      {/* User Profile / Logout */}
+      <div className="p-4 border-t border-slate-200 bg-slate-50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3 overflow-hidden">
+            <div className="w-9 h-9 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold shadow-sm">
+              {user?.username ? user.username[0].toUpperCase() : "U"}
+            </div>
+            <div className="flex flex-col truncate pr-2">
+              <span className="text-sm font-semibold text-slate-800 truncate">
+                {user?.username || "Tài khoản"}
+              </span>
+              <span className="text-xs text-slate-500 capitalize truncate">
+                {user?.role === "admin" ? "Quản trị viên" : user?.role || "Khách"}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => logoutMutation.mutate()}
+            disabled={logoutMutation.isPending}
+            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+            title="Đăng xuất"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
 
     </div>
   );

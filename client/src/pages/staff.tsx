@@ -65,6 +65,12 @@ export default function Staff() {
     queryKey: ["/api/can-bo"],
   });
 
+  const { data: user } = useQuery<any>({
+    queryKey: ["/api/user"],
+  });
+
+  const isAdmin = user?.role === "admin";
+
   const form = useForm<InsertCanBo>({
     resolver: zodResolver(insertCanBoSchema),
     defaultValues: {
@@ -178,10 +184,12 @@ export default function Staff() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Danh sách cán bộ</CardTitle>
-                <Button onClick={() => setIsCreateModalOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Thêm cán bộ
-                </Button>
+                {isAdmin && (
+                  <Button onClick={() => setIsCreateModalOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Thêm cán bộ
+                  </Button>
+                )}
               </div>
 
               <div className="flex items-center space-x-4 mt-4">
@@ -224,7 +232,7 @@ export default function Staff() {
                         <TableHead>Chức vụ</TableHead>
                         <TableHead>Trạng thái</TableHead>
                         <TableHead>Số điện thoại</TableHead> {/* ➜ Cột mới */}
-                        <TableHead></TableHead>
+                        {isAdmin && <TableHead></TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -289,43 +297,34 @@ export default function Staff() {
                             </span>
                           </TableCell>
 
-                          <TableCell>
-                            <div className="flex items-center space-x-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-primary hover:text-primary/80"
-                                onClick={() => {
-                                  setSelectedStaff(member);
-                                  setIsEditModalOpen(true);
-                                }}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-slate-600 hover:text-slate-800"
-                                onClick={() => {
-                                  setSelectedStaff(member);
-                                  setIsEditModalOpen(true);
-                                }}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-red-600 hover:text-red-800"
-                                onClick={() => handleDeleteStaff(member.id)}
-                                disabled={deleteStaffMutation.isPending}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
+                          {isAdmin && (
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-primary hover:text-primary/80"
+                                  onClick={() => {
+                                    setSelectedStaff(member);
+                                    setIsEditModalOpen(true);
+                                  }}
+                                  title="Chỉnh sửa"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                  onClick={() => handleDeleteStaff(member.id)}
+                                  title="Xóa"
+                                  disabled={deleteStaffMutation.isPending}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>

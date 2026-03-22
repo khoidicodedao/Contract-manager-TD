@@ -1,6 +1,12 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
+  if (res.status === 401) {
+    localStorage.removeItem("token");
+    if (window.location.pathname !== "/login") {
+      window.location.href = "/login";
+    }
+  }
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
     throw new Error(`${res.status}: ${text}`);

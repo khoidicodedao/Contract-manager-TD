@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Eye, Edit, Trash2, Search, Plus, Package } from "lucide-react";
-import { TrangBi } from "@shared/schema";
+import { TrangBi, HopDong, NhaCungCap, LoaiTrangBi } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import EquipmentModal from "@/components/modals/equipment-modal";
@@ -34,12 +34,16 @@ export default function Equipment() {
   const { data: equipment = [], isLoading } = useQuery<TrangBi[]>({
     queryKey: ["/api/trang-bi"],
   });
-  const { data: contracts = [] } = useQuery({
+  const { data: contracts = [] } = useQuery<HopDong[]>({
     queryKey: ["/api/hop-dong"],
   });
 
-  const { data: nhaCungCap } = useQuery({
+  const { data: nhaCungCap = [] } = useQuery<NhaCungCap[]>({
     queryKey: ["/api/nha-cung-cap"],
+  });
+
+  const { data: equipmentTypes = [] } = useQuery<LoaiTrangBi[]>({
+    queryKey: ["/api/loai-trang-bi"],
   });
   const deleteEquipmentMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -187,19 +191,18 @@ export default function Equipment() {
                               </div>
                               <div>
                                 <div className="font-medium text-slate-900">
-                                  {item.ten || "Chưa có tên"}
-                                </div>
-                                <div className="text-sm text-slate-500">
-                                  ID: {item.id}
-                                </div>
+                                {item.ten || "Chưa có tên"}
+                              </div>
                               </div>
                             </div>
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">
-                              {item.loaiTrangBiId
-                                ? `Loại ${item.loaiTrangBiId}`
-                                : "Chưa phân loại"}
+                                {item.loaiTrangBiId
+                                  ? equipmentTypes.find(
+                                      (t: LoaiTrangBi) => t.id === item.loaiTrangBiId
+                                    )?.ten || (isLoading ? "Đang tải..." : "Không xác định")
+                                  : "Chưa phân loại"}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -211,7 +214,7 @@ export default function Equipment() {
                           <TableCell>
                             {item.nhaCungCapId
                               ? nhaCungCap.find(
-                                  (ncc: any) => ncc.id === item.nhaCungCapId
+                                  (ncc: NhaCungCap) => ncc.id === item.nhaCungCapId
                                 )?.ten || `NCC-${item.nhaCungCapId}`
                               : "Chưa xác định"}
                           </TableCell>

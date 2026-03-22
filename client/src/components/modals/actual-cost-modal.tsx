@@ -15,6 +15,7 @@ import {
     FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { NumericFormatInput } from "@/components/ui/numeric-format-input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -191,12 +192,10 @@ export default function ActualCostModal({
                                 <FormItem>
                                     <FormLabel>Trị giá</FormLabel>
                                     <FormControl>
-                                        <Input
-                                            type="number"
+                                        <NumericFormatInput
                                             placeholder="Nhập trị giá"
-                                            {...field}
-                                            value={field.value ?? 0}
-                                            onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                                            value={field.value}
+                                            onChange={field.onChange}
                                         />
                                     </FormControl>
                                     <FormMessage />

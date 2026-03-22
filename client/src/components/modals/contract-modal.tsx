@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericFormatInput } from "@/components/ui/numeric-format-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -29,7 +30,9 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { insertHopDongSchema, InsertHopDong } from "@shared/schema";
-// import { CloudUpload, X } from "lucide-react";
+import {
+  CONTRACT_STATUS_LABELS,
+} from "@/lib/constants";
 
 interface ContractModalProps {
   isOpen: boolean;
@@ -66,6 +69,7 @@ export default function ContractModal({
         chuDauTuId: contract.chuDauTuId,
         nhaCungCapId: contract.nhaCungCapId,
         loaiNganSachId: contract.loaiNganSachId,
+        phongBanId: contract.phongBanId ?? undefined,
         canBoId: contract.canBoId,
         trangThaiHopDongId: contract.trangThaiHopDongId,
         giaTriHopDong: contract.giaTriHopDong ?? 0,
@@ -97,6 +101,7 @@ export default function ContractModal({
         hinhThucHopDong: undefined,
         hinhThucGiaoHang: "",
         thuTruongPhuTrach: "",
+        phongBanId: undefined,
         soLanGiaoHang: undefined,
         tongHanMucNganSach: 0,
         loaiTienTongHanMuc: "VNĐ",
@@ -113,10 +118,10 @@ export default function ContractModal({
   const { data: loaiHopDong } = useQuery({ queryKey: ["/api/loai-hop-dong"] });
   const { data: nhaCungCap } = useQuery({ queryKey: ["/api/nha-cung-cap"] });
   const { data: chuDauTu } = useQuery({ queryKey: ["/api/chu-dau-tu"] });
-  const { data: canBo } = useQuery({ queryKey: ["/api/can-bo"] });
-  const { data: loaiNganSach } = useQuery({
-    queryKey: ["/api/loai-ngan-sach"],
-  });
+  const { data: currentUser } = useQuery<{ role: string; phongBanId: number | null }>({ queryKey: ["/api/user"] });
+  const { data: departments = [] } = useQuery({ queryKey: ["/api/phong-ban"] });
+  const { data: canBo = [] } = useQuery({ queryKey: ["/api/can-bo"] });
+  const { data: loaiNganSach } = useQuery({ queryKey: ["/api/loai-ngan-sach"] });
   const { data: trangThaiHopDong } = useQuery({
     queryKey: ["/api/trang-thai-hop-dong"],
   });
@@ -132,12 +137,13 @@ export default function ContractModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/hop-dong"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/system/overview"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/charts"] });
       toast({
-        title: "Thành công",
+        title: "Thanh cong",
         description: contract
-          ? "Hợp đồng đã được cập nhật thành công"
-          : "Hợp đồng đã được tạo thành công",
+          ? "Hop dong da duoc cap nhat thanh cong"
+          : "Hop dong da duoc tao thanh cong",
       });
       form.reset();
       setSelectedFiles([]);
@@ -145,8 +151,8 @@ export default function ContractModal({
     },
     onError: () => {
       toast({
-        title: "Lỗi",
-        description: "Không thể tạo hợp đồng. Vui lòng thử lại.",
+        title: "Loi",
+        description: "Khong the tao hop dong. Vui long thu lai.",
         variant: "destructive",
       });
     },
@@ -289,13 +295,7 @@ export default function ContractModal({
                       <SelectContent>
                         {Array.isArray(trangThaiHopDong) && trangThaiHopDong.map((item: any) => (
                           <SelectItem key={item.id} value={item.id.toString()}>
-                            {item.id === 1
-                              ? "Đang thực hiện"
-                              : item.id === 2
-                                ? "Đã Thanh lý"
-                                : item.id === 3
-                                  ? "Chưa thực hiện"
-                                  : `Trạng thái ${item.id}`}
+                            {CONTRACT_STATUS_LABELS[item.id as keyof typeof CONTRACT_STATUS_LABELS] || `Trạng thái ${item.id}`}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -378,17 +378,10 @@ export default function ContractModal({
                   <FormItem>
                     <FormLabel>Trị giá hàng hoá, dịch vụ *</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="any" // cho phép nhập số lẻ
-                        placeholder="VD: 100000000"
-                        {...field}
-                        value={field.value ?? 0}
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value);
-                          field.onChange(isNaN(value) ? 0 : value);
-                        }}
+                      <NumericFormatInput
+                        placeholder="VD: 100.000.000"
+                        value={field.value}
+                        onChange={field.onChange}
                       />
                     </FormControl>
 
@@ -434,17 +427,10 @@ export default function ContractModal({
                   <FormItem>
                     <FormLabel>Phí ủy thác *</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={1}
-                        placeholder="VD: 100000000"
-                        {...field}
-                        value={field.value ?? 0}
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value);
-                          field.onChange(isNaN(value) ? 0 : value);
-                        }}
+                      <NumericFormatInput
+                        placeholder="VD: 100.000.000"
+                        value={field.value}
+                        onChange={field.onChange}
                       />
                     </FormControl>
                     <FormMessage />
@@ -666,17 +652,10 @@ export default function ContractModal({
                   <FormItem>
                     <FormLabel>Tổng hạn mức ngân sách</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="any"
-                        placeholder="VD: 500000000"
-                        {...field}
-                        value={field.value ?? 0}
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value);
-                          field.onChange(isNaN(value) ? 0 : value);
-                        }}
+                      <NumericFormatInput
+                        placeholder="VD: 500.000.000"
+                        value={field.value}
+                        onChange={field.onChange}
                       />
                     </FormControl>
                     <FormMessage />
@@ -716,17 +695,10 @@ export default function ContractModal({
                   <FormItem>
                     <FormLabel>Chi phí đoàn ra, đoàn vào (VNĐ)</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="any"
-                        placeholder="VD: 50000000"
-                        {...field}
-                        value={field.value ?? 0}
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value);
-                          field.onChange(isNaN(value) ? 0 : value);
-                        }}
+                      <NumericFormatInput
+                        placeholder="VD: 50.000.000"
+                        value={field.value}
+                        onChange={field.onChange}
                       />
                     </FormControl>
                     <FormMessage />
@@ -742,17 +714,10 @@ export default function ContractModal({
                   <FormItem>
                     <FormLabel>Chi phí thực hiện trong nước (VNĐ)</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="any"
-                        placeholder="VD: 100000000"
-                        {...field}
-                        value={field.value ?? 0}
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value);
-                          field.onChange(isNaN(value) ? 0 : value);
-                        }}
+                      <NumericFormatInput
+                        placeholder="VD: 100.000.000"
+                        value={field.value}
+                        onChange={field.onChange}
                       />
                     </FormControl>
                     <FormMessage />
@@ -846,6 +811,45 @@ export default function ContractModal({
                   <FormMessage />
                 </FormItem>
               )}
+            />
+
+            <FormField
+              control={form.control}
+              name="phongBanId"
+              render={({ field }) => {
+                const isAdmin = currentUser?.role === "admin" || currentUser?.role === "grand_commander";
+                // Nếu không phải admin, ép cứng lấy phongBanId của user (nếu có)
+                const enforcedPhongBanId = !isAdmin && currentUser?.phongBanId ? String(currentUser.phongBanId) : undefined;
+                
+                return (
+                  <FormItem>
+                    <FormLabel>Phòng ban quản lý</FormLabel>
+                    <Select 
+                      onValueChange={(v) => field.onChange(v === "none" ? undefined : Number(v))} 
+                      value={enforcedPhongBanId || (field.value ? String(field.value) : undefined)}
+                      disabled={!isAdmin} // Chỉ Admin/Grand Commander mới được chọn phòng ban quản lý khác
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn phòng ban quản lý" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">--- Không gắn phòng ---</SelectItem>
+                        {Array.isArray(departments) && departments.map((d: any) => (
+                          <SelectItem key={d.id} value={String(d.id)}>
+                            {d.ten}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {!isAdmin && (
+                      <p className="text-xs text-slate-500">Tự động gắn vào phòng ban của bạn.</p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
 
             {/* Mô tả */}

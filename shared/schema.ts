@@ -144,6 +144,7 @@ export const hopDong = sqliteTable("hop_dong", {
   ngayBienBanThanhLy: text("ngay_bien_ban_thanh_ly"),
   soBienBanBanGiaoDongBo: text("so_bien_ban_ban_giao_dong_bo"),
   ngayBienBanBanGiaoDongBo: text("ngay_bien_ban_ban_giao_dong_bo"),
+  phongBanId: integer("phong_ban_id"),
 });
 
 // Trang bị
@@ -336,6 +337,7 @@ export const doanRaVao = sqliteTable("doan_ra_vao", {
   hopDongId: integer("hop_dong_id").notNull(),
   chiPhi: real("chi_phi"),
   tyGia: real("ty_gia"),
+  loaiTienId: integer("loai_tien_id"),
   ghiChu: text("ghi_chu"),
 });
 
@@ -413,11 +415,33 @@ export const insertCapTienSchema = z.object({
 });
 
 export const updateCapTienSchema = insertCapTienSchema.partial();
+// Phòng ban
+export const phongBan = sqliteTable("phong_ban", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ten: text("ten").notNull(),
+  moTa: text("mo_ta"),
+});
+
 // User table for authentication
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   username: text("username").unique().notNull(),
   password: text("password").notNull(),
+  role: text("role").notNull(), // admin, grand_commander, dept_commander, assistant
+  phongBanId: integer("phong_ban_id"), // Liên kết với bảng phong_ban
+  canBoId: integer("can_bo_id"), // Liên kết với bảng can_bo
+});
+
+// Nhật ký hoạt động (Audit Logs)
+export const auditLogs = sqliteTable("audit_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull(),
+  action: text("action").notNull(), // create, update, delete, view
+  targetType: text("target_type").notNull(), // hop_dong, thanh_toan, etc.
+  targetId: integer("target_id"),
+  timestamp: text("timestamp").notNull(),
+  details: text("details"),
+  hopDongId: integer("hop_dong_id"), // Liên kết đến hợp đồng cụ thể để tìm kiếm
 });
 
 export const dieuKienGiaoHang = sqliteTable("dieu_kien_giao_hang", {
@@ -500,6 +524,12 @@ export const insertLoaiVanBanPhapLySchema = createInsertSchema(
   loaiVanBanPhapLy
 ).omit({ id: true });
 export const insertVanBanPhapLySchema = createInsertSchema(vanBanPhapLy).omit({
+  id: true,
+});
+export const insertPhongBanSchema = createInsertSchema(phongBan).omit({
+  id: true,
+});
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
   id: true,
 });
 
@@ -601,3 +631,10 @@ export type LoaiChiPhi = typeof loaiChiPhi.$inferSelect;
 export type ChiPhiThucTe = typeof chiPhiThucTe.$inferSelect;
 export type ChiPhiTheoHopDong = typeof chiPhiTheoHopDong.$inferSelect;
 export type SystemSettings = typeof systemSettings.$inferSelect;
+export type DieuKienGiaoHang = typeof dieuKienGiaoHang.$inferSelect;
+export type User = typeof users.$inferSelect;
+export type PhongBan = typeof phongBan.$inferSelect;
+export type AuditLog = typeof auditLogs.$inferSelect;
+
+export const roles = ["admin", "grand_commander", "dept_commander", "assistant"] as const;
+export type Role = (typeof roles)[number];

@@ -340,7 +340,9 @@ export default function Suppliers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/nha-cung-cap"] });
-      toast({ title: "Thành công", description: "Đã thêm nhà cung cấp" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/charts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/system/overview"] });
+      toast({ title: "Thanh cong", description: "Da them nha cung cap" });
       form.reset();
       setSelectedImage(null);
       setIsCreateModalOpen(false);
@@ -358,7 +360,9 @@ export default function Suppliers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/nha-cung-cap"] });
-      toast({ title: "Thành công", description: "Đã cập nhật nhà cung cấp" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/charts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/system/overview"] });
+      toast({ title: "Thanh cong", description: "Da cap nhat nha cung cap" });
       form.reset();
       setSelectedImage(null);
       setEditingSupplier(null);
@@ -372,7 +376,9 @@ export default function Suppliers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/nha-cung-cap"] });
-      toast({ title: "Thành công", description: "Đã xóa nhà cung cấp" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/charts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/system/overview"] });
+      toast({ title: "Thanh cong", description: "Da xoa nha cung cap" });
     },
   });
 
@@ -475,8 +481,8 @@ export default function Suppliers() {
                         <TableCell>
                           <div className="flex items-center space-x-2">
                             <img
-                              src={getCountryFlag(supplier.maQuocGia)}
-                              alt={supplier.maQuocGia}
+                              src={getCountryFlag(supplier.maQuocGia || "")}
+                              alt={supplier.maQuocGia || "unknown"}
                               width={24}
                               height={18}
                             />
@@ -588,7 +594,7 @@ export default function Suppliers() {
                   <FormItem>
                     <FormLabel>Mã quốc gia</FormLabel>
                     <FormControl>
-                      <Input {...field} readOnly />
+                      <Input {...field} value={field.value || ""} readOnly />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

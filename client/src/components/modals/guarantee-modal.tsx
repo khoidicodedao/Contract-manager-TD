@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericFormatInput } from "@/components/ui/numeric-format-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
     Select,
@@ -268,12 +269,9 @@ export default function GuaranteeModal({
                                     <FormItem>
                                         <FormLabel>Trị giá</FormLabel>
                                         <FormControl>
-                                            <Input
-                                                type="number"
-                                                step="any"
-                                                {...field}
-                                                value={field.value ?? 0}
-                                                onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                                            <NumericFormatInput
+                                                value={field.value}
+                                                onChange={field.onChange}
                                                 disabled={mode === "view"}
                                             />
                                         </FormControl>

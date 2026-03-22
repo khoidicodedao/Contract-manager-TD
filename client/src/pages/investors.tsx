@@ -23,7 +23,6 @@ import {
   Building2,
   Users,
   FileText,
-  TrendingUp,
 } from "lucide-react";
 import { ChuDauTu, HopDong } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -98,24 +97,7 @@ export default function InvestorsPage() {
     ).length;
   };
 
-  const getContractValue = (investor: ChuDauTu) => {
-    return contracts
-      .filter(
-        (contract: HopDong) =>
-          contract.chuDauTuId === investor.id ||
-          contract.chuDauTu === investor.ten
-      )
-      .reduce(
-        (sum: number, contract: HopDong) => sum + (contract.giaTriHopDong || 0),
-        0
-      );
-  };
-
   const totalContracts = contracts.length;
-  const totalValue = contracts.reduce(
-    (sum: number, contract: HopDong) => sum + (contract.giaTriHopDong || 0),
-    0
-  );
   const activeInvestors = investors.filter(
     (investor: ChuDauTu) => getContractCount(investor) > 0
   ).length;
@@ -139,7 +121,7 @@ export default function InvestorsPage() {
 
         <main className="flex-1 overflow-auto p-6">
           {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center">
@@ -194,23 +176,6 @@ export default function InvestorsPage() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-600">
-                      Tổng giá trị
-                    </p>
-                    <p className="text-2xl font-bold text-slate-900 mt-2">
-                      {formatCurrency(totalValue).replace("₫", "VNĐ")}
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <TrendingUp className="w-6 h-6 text-purple-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
           {/* Main Content */}
@@ -274,7 +239,6 @@ export default function InvestorsPage() {
                   <TableBody>
                     {filteredInvestors.map((investor: ChuDauTu) => {
                       const contractCount = getContractCount(investor);
-                      const contractValue = getContractValue(investor);
 
                       return (
                         <TableRow key={investor.id}>

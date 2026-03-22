@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { NumericFormatInput } from "@/components/ui/numeric-format-input";
 import { apiRequest } from "@/lib/queryClient";
 import {
     DoanRaVao,
@@ -214,7 +215,11 @@ export default function MissionModal({
                                     <FormItem>
                                         <FormLabel>Chi phí</FormLabel>
                                         <FormControl>
-                                            <Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                                            <NumericFormatInput 
+                                                value={field.value} 
+                                                onChange={field.onChange} 
+                                                placeholder="Nhập chi phí"
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

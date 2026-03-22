@@ -27,10 +27,13 @@ export default function WorldMap({ data }: WorldMapProps) {
   const maxCount = Math.max(...data.map((d) => d.count), 1);
 
   const getFillColor = (count: number) => {
-    if (count >= 3) return "#dc2626"; // đỏ
-    if (count === 2) return "#ea580c"; // cam
-    if (count === 1) return "#16a34a"; // xanh
-    return "#e5e7eb"; // xám nhạt
+    if (count <= 0) return "#e5e7eb"; // xám nhạt
+    if (count < 5) return "#16a34a"; // xanh (1-4)
+    if (count < 10) return "#2563eb"; // xanh dương (5-9)
+    if (count < 15) return "#eab308"; // vàng (10-14)
+    if (count < 20) return "#f97316"; // cam (15-19)
+    if (count < 25) return "#dc2626"; // đỏ (20-24)
+    return "#7f1d1d"; // đỏ đậm (25+)
   };
 
   // Tạo Map để truy nhanh
@@ -40,7 +43,7 @@ export default function WorldMap({ data }: WorldMapProps) {
   });
 
   return (
-    <div className="w-full h-96 bg-gray-50 rounded-lg overflow-hidden relative">
+    <div className="w-full h-[500px] bg-gray-50 rounded-lg overflow-hidden relative border">
       <ComposableMap
         projection="geoMercator"
         projectionConfig={{
@@ -92,18 +95,30 @@ export default function WorldMap({ data }: WorldMapProps) {
         <h4 className="text-sm font-medium text-gray-900 mb-2">
           Số lượng hợp đồng
         </h4>
-        <div className="flex items-center space-x-4 text-xs">
-          <div className="flex items-center space-x-1">
-            <div className="w-3 h-3 rounded-full bg-green-600"></div>
-            <span>1</span>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+          <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 rounded-full bg-[#16a34a]"></div>
+            <span>1 - 4</span>
           </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-4 h-4 rounded-full bg-orange-600"></div>
-            <span>2</span>
+          <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 rounded-full bg-[#2563eb]"></div>
+            <span>5 - 9</span>
           </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-5 h-5 rounded-full bg-red-600"></div>
-            <span>3+</span>
+          <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 rounded-full bg-[#eab308]"></div>
+            <span>10 - 14</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 rounded-full bg-[#f97316]"></div>
+            <span>15 - 19</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 rounded-full bg-[#dc2626]"></div>
+            <span>20 - 24</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 rounded-full bg-[#7f1d1d]"></div>
+            <span>25+</span>
           </div>
         </div>
       </div>

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericFormatInput } from "@/components/ui/numeric-format-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -189,14 +190,9 @@ export default function CapTienModal({
                 <FormItem>
                   <FormLabel>Số tiền</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="any"
-                      {...field}
-                      onChange={(e) =>
-                        field.onChange(parseFloat(e.target.value))
-                      }
+                    <NumericFormatInput
+                      value={field.value}
+                      onChange={field.onChange}
                       disabled={mode === "view"}
                     />
                   </FormControl>
@@ -311,12 +307,9 @@ export default function CapTienModal({
                     <FormItem>
                       <FormLabel>Số tiền quy đổi</FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
-                          step="any"
-                          {...field}
-                          value={field.value === null || field.value === undefined ? 0 : field.value}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                        <NumericFormatInput
+                          value={field.value}
+                          onChange={field.onChange}
                           disabled={mode === "view"}
                         />
                       </FormControl>

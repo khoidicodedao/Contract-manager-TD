@@ -2,6 +2,8 @@ import express, { type Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import { registerRoutes } from "./routes";
 import { log } from "./vite"; // ✅ log không gây lỗi, chỉ là hàm helper
+import { db } from "./database";
+import { auditLogs } from "@shared/schema";
 
 export async function startServer() {
   const app = express();
@@ -33,11 +35,59 @@ export async function startServer() {
           logLine = logLine.slice(0, 79) + "…";
         }
         log(logLine);
+        
+        // Auto Audit Logging for generic routes
+        const isMutation = ["POST", "PUT", "DELETE", "PATCH"].includes(req.method);
+        const isSuccess = res.statusCode >= 200 && res.statusCode < 300;
+        const user = (req as any).user;
+        const isAudited = (req as any).audited;
+
+        if (isMutation && isSuccess && user && !isAudited) {
+          try {
+            const actionMap: Record<string, string> = { POST: "create", PUT: "update", DELETE: "delete", PATCH: "update" };
+            const action = actionMap[req.method] || req.method.toLowerCase();
+            
+            const urlPath = req.path.replace("/api/", "");
+            const parts = urlPath.split("/");
+            let targetType = parts[0];
+            let targetId = null;
+
+            if (parts.length > 1 && !isNaN(Number(parts[1]))) {
+              targetId = Number(parts[1]);
+            } else if (capturedJsonResponse) {
+              if (capturedJsonResponse.id) targetId = capturedJsonResponse.id;
+              else if (Array.isArray(capturedJsonResponse) && capturedJsonResponse[0]?.id) {
+                targetId = capturedJsonResponse[0].id;
+              }
+            }
+
+            // Exclude already handled authentication endpoints
+            if (targetType !== "login" && targetType !== "logout" && targetType !== "register" && targetType !== "user") {
+              const actionLabels: Record<string, string> = { create: "Tạo mới", update: "Cập nhật", delete: "Xóa" };
+              const details = `${actionLabels[action] || action} bản ghi thuộc ${targetType.replace(/-/g, ' ')}`;
+              
+              db.insert(auditLogs).values({
+                userId: user.id,
+                action,
+                targetType,
+                targetId: targetId || null,
+                details,
+                timestamp: new Date().toISOString()
+              }).catch((e: any) => console.error("Lỗi auto audit:", e));
+            }
+          } catch (e) {
+            console.error("Lỗi logic auto audit:", e);
+          }
+        }
       }
     });
 
     next();
   });
+
+  // Cấu hình xác thực
+  const { setupAuth } = await import("./auth");
+  setupAuth(app);
 
   // Đăng ký route
   await registerRoutes(app);

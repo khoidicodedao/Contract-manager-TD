@@ -30,6 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import React from "react";
 import { BaoLanh, HopDong, LoaiBaoLanh } from "@shared/schema";
 import GuaranteeModal from "@/components/modals/guarantee-modal";
+import GuaranteeTypeModal from "@/components/modals/guarantee-type-modal";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
@@ -38,6 +39,7 @@ export default function GuaranteesPage() {
     const [modalMode, setModalMode] = useState<"create" | "edit" | "view" | null>(null);
     const [selectedRecord, setSelectedRecord] = useState<BaoLanh | null>(null);
     const [selectedHds, setSelectedHds] = useState<number[]>([]);
+    const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
 
     const { toast } = useToast();
     const queryClient = useQueryClient();
@@ -147,6 +149,10 @@ export default function GuaranteesPage() {
                                 <Button variant="outline" onClick={handleExport}>
                                     <FileSpreadsheet className="w-4 h-4 mr-2" />
                                     Xuất Excel
+                                </Button>
+                                <Button variant="outline" onClick={() => setIsTypeModalOpen(true)}>
+                                    <Shield className="w-4 h-4 mr-2" />
+                                    Quản lý loại
                                 </Button>
                                 <Button onClick={() => handleOpenModal("create")}>
                                     <Plus className="w-4 h-4 mr-2" />
@@ -295,6 +301,11 @@ export default function GuaranteesPage() {
                     record={selectedRecord}
                 />
             )}
+
+            <GuaranteeTypeModal
+                isOpen={isTypeModalOpen}
+                onClose={() => setIsTypeModalOpen(false)}
+            />
         </div>
     );
 }

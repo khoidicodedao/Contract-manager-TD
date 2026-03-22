@@ -171,7 +171,14 @@ function useReminders(events: EventItem[]) {
  * ============================== */
 const COLORS = [
   { label: "Xanh dương", value: "#3b82f6" },
+  { label: "Tím nhạt (Indigo)", value: "#6366f1" },
+  { label: "Xanh lá (Emerald)", value: "#10b981" },
+  { label: "Vàng (Amber)", value: "#f59e0b" },
   { label: "Cam", value: "#f97316" },
+  { label: "Hồng đỏ (Rose)", value: "#f43f5e" },
+  { label: "Tím (Violet)", value: "#8b5cf6" },
+  { label: "Xanh lơ (Cyan)", value: "#06b6d4" },
+  { label: "Xám (Slate)", value: "#64748b" },
   { label: "Đỏ", value: "#ef4444" },
 ];
 /** ==============================

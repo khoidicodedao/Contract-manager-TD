@@ -419,6 +419,10 @@ export default function Reception() {
                     <SelectContent>
                       <SelectItem value="Nhập">Nhập khẩu</SelectItem>
                       <SelectItem value="Xuất">Xuất khẩu</SelectItem>
+                      <SelectItem value="Tạm nhập tái xuất">Tạm nhập </SelectItem>
+                      <SelectItem value="Tạm xuất tái nhập">Tạm xuất</SelectItem>
+                      <SelectItem value="Gia công">Tái nhập</SelectItem>
+
                     </SelectContent>
                   </Select>
                 </div>

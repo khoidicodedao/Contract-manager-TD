@@ -1,6 +1,6 @@
 import { Express } from "express";
 import { Server } from "http";
-import { eq, ilike, sql } from "drizzle-orm";
+import { eq, ilike, sql, or, and } from "drizzle-orm";
 import { db } from "./database.js";
 import * as schema from "../shared/schema.js";
 
@@ -42,6 +42,24 @@ const upload = multer({
   },
 });
 export async function registerRoutes(app: Express): Promise<void> {
+  // Helper ghi log hệ thống
+  async function logAction(req: any, action: string, targetType: string, targetId: number | null, details: string, hopDongId?: number | null) {
+    if (req.user) {
+      try {
+        await db.insert(schema.auditLogs).values({
+          userId: (req.user as any).id,
+          action,
+          targetType,
+          targetId,
+          details,
+          hopDongId,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error("Lỗi ghi log:", error);
+      }
+    }
+  }
 
   // ─── Thông báo: hợp đồng & thanh toán sắp / quá hạn ─────────────────────
   app.get("/api/notifications", async (req, res) => {
@@ -58,8 +76,15 @@ export async function registerRoutes(app: Express): Promise<void> {
         return Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       };
 
-      const contracts = await db.select().from(schema.hopDong);
-      const payments = await db.select().from(schema.thanhToan);
+      const user = req.user as any;
+      let contracts = await db.select().from(schema.hopDong);
+      let payments = await db.select().from(schema.thanhToan);
+
+      if (user && user.role !== "admin" && user.role !== "grand_commander") {
+        contracts = contracts.filter(c => c.phongBanId === user.phongBanId || (user.canBoId && c.canBoId === user.canBoId));
+        const contractIds = new Set(contracts.map(c => c.id));
+        payments = payments.filter(p => p.hopDongId && contractIds.has(p.hopDongId));
+      }
 
       const notifications: any[] = [];
 
@@ -186,14 +211,28 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   // System overview route
   app.get("/api/system/overview", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Chưa đăng nhập" });
+    const user = req.user as any;
 
     try {
-      const contracts = await db.select().from(schema.hopDong);
-      const payments = await db.select().from(schema.thanhToan);
-      const equipment = await db.select().from(schema.trangBi);
-      const documents = await db.select().from(schema.fileHopDong);
-      const progressSteps = await db.select().from(schema.buocThucHien);
+      let contracts = await db.select().from(schema.hopDong);
+      let payments = await db.select().from(schema.thanhToan);
+      let equipment = await db.select().from(schema.trangBi);
+      let documents = await db.select().from(schema.fileHopDong);
+      let progressSteps = await db.select().from(schema.buocThucHien);
       const loaiTienList = await db.select().from(schema.loaiTien);
+
+      // Lọc dữ liệu theo phòng ban nếu không phải admin
+      if (user.role !== "admin" && user.role !== "grand_commander") {
+        contracts = contracts.filter(c => c.phongBanId === user.phongBanId || (user.canBoId && c.canBoId === user.canBoId));
+        const contractIds = new Set(contracts.map(c => c.id));
+        
+        payments = payments.filter(p => p.hopDongId && contractIds.has(p.hopDongId));
+        equipment = equipment.filter(e => e.hopDongId && contractIds.has(e.hopDongId));
+        documents = documents.filter(d => d.hopDongId && contractIds.has(d.hopDongId));
+        progressSteps = progressSteps.filter(ps => ps.hopDongId && contractIds.has(ps.hopDongId));
+      }
+
       const totalValueByCurrency = loaiTienList.map((currency) => {
         const relatedContracts = contracts.filter(
           (c) => c.loaiTienId === currency.id
@@ -221,6 +260,15 @@ export async function registerRoutes(app: Express): Promise<void> {
           totalValue: total,
         };
       });
+      const totalPaidValue = payments
+        .filter(p => p.daThanhToan)
+        .reduce((sum, p) => {
+          const contract = contracts.find(c => c.id === p.hopDongId);
+          if (!contract) return sum;
+          const tyGia = parseFloat(contract.tyGia?.toString() || "1");
+          return sum + (p.soTien || 0) * tyGia;
+        }, 0);
+
       const stats = {
         totalContracts: contracts.length,
         activeContracts: contracts.filter((c) => c.trangThaiHopDongId === 1)
@@ -233,8 +281,13 @@ export async function registerRoutes(app: Express): Promise<void> {
           (sum, c) => sum + (c.giaTriHopDong || 0),
           0
         ),
+        totalValueVND: contracts.reduce((sum, c) => {
+          const tyGia = parseFloat(c.tyGia?.toString() || "1");
+          return sum + (c.giaTriHopDong || 0) * tyGia;
+        }, 0),
+        totalPaidValue,
         totalUyThacByCurrency,
-        totalValueByCurrency, // 👉 thêm vào đây
+        totalValueByCurrency,
         totalPayments: payments.length,
         pendingPayments: payments.filter((p) => p.daThanhToan === false).length,
         completedPayments: payments.filter((p) => p.daThanhToan === true)
@@ -278,16 +331,30 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   // Dashboard charts route
   app.get("/api/dashboard/charts", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Chưa đăng nhập" });
+    const user = req.user as any;
+
     try {
       const contractTypes = await db.select().from(schema.loaiHopDong);
-      const contracts = await db.select().from(schema.hopDong);
+      let contracts = await db.select().from(schema.hopDong);
+      let payments = await db.select().from(schema.thanhToan);
+      let progressSteps = await db.select().from(schema.buocThucHien);
+      const suppliers = await db.select().from(schema.nhaCungCap);
+
+      // Lọc dữ liệu theo phòng ban nếu không phải admin
+      if (user.role !== "admin" && user.role !== "grand_commander") {
+        contracts = contracts.filter(c => c.phongBanId === user.phongBanId || (user.canBoId && c.canBoId === user.canBoId));
+        const contractIds = new Set(contracts.map(c => c.id));
+        
+        payments = payments.filter(p => p.hopDongId && contractIds.has(p.hopDongId));
+        progressSteps = progressSteps.filter(ps => ps.hopDongId && contractIds.has(ps.hopDongId));
+      }
 
       const contractTypeData = contractTypes.map((type) => ({
         name: type.ten,
         value: contracts.filter((c) => c.loaiHopDongId === type.id).length,
       }));
 
-      const payments = await db.select().from(schema.thanhToan);
       const paymentStatusData = [
         {
           name: "Đã thanh toán",
@@ -301,7 +368,6 @@ export async function registerRoutes(app: Express): Promise<void> {
         },
       ];
 
-      const progressSteps = await db.select().from(schema.buocThucHien);
       const progressStatusData = [
         {
           name: "Hoàn thành",
@@ -321,65 +387,143 @@ export async function registerRoutes(app: Express): Promise<void> {
       ];
 
       // Supplier statistics by country
-      const suppliers = await db.select().from(schema.nhaCungCap);
-
       const supplierCountryMap = new Map<string, number>();
 
-      for (const supplier of suppliers) {
+      // Country code to name mapping for the world map
+      const countryMap: Record<string, string> = {
+        'VN': 'Vietnam',
+        'US': 'United States of America',
+        'SG': 'Singapore',
+        'AT': 'Austria',
+        'AW': 'Aruba',
+        'ES': 'Spain',
+        'CZ': 'Czechia',
+        'FR': 'France',
+        'DE': 'Germany',
+        'GB': 'United Kingdom',
+        'JP': 'Japan',
+        'CN': 'China',
+        'KR': 'South Korea',
+        'RU': 'Russia',
+        'IT': 'Italy',
+        'CA': 'Canada',
+        'AU': 'Australia',
+        'AI': 'Anguilla',
+        'IR': 'Iran',
+        'CH': 'Switzerland',
+        'BE': 'Belgium',
+        'NL': 'Netherlands',
+        'SE': 'Sweden',
+        'NO': 'Norway',
+        'FI': 'Finland',
+        'DK': 'Denmark',
+        'TH': 'Thailand',
+        'MY': 'Malaysia',
+        'ID': 'Indonesia',
+        'PH': 'Philippines',
+        'IN': 'India',
+        'BR': 'Brazil',
+        'MX': 'Mexico',
+        'IL': 'Israel',
+        'AE': 'United Arab Emirates',
+        'SA': 'Saudi Arabia',
+        'TR': 'Turkey',
+        'LA': 'Laos',
+        'KH': 'Cambodia',
+        'UY': 'Uruguay',
+        'AR': 'Argentina',
+        'CL': 'Chile',
+        'PE': 'Peru',
+        'CO': 'Colombia',
+        'PL': 'Poland',
+        'UA': 'Ukraine',
+        'RO': 'Romania',
+        'HU': 'Hungary',
+        'GR': 'Greece',
+        'PT': 'Portugal',
+        'NZ': 'New Zealand',
+        'ZA': 'South Africa',
+        'EG': 'Egypt',
+        'MA': 'Morocco',
+        'DZ': 'Algeria',
+        'PK': 'Pakistan',
+        'BD': 'Bangladesh',
+        'LK': 'Sri Lanka',
+        'MM': 'Myanmar',
+        'TW': 'Taiwan',
+        'HK': 'Hong Kong',
+        'MO': 'Macao',
+        'BN': 'Brunei',
+        'TL': 'Timor-Leste',
+        'KP': 'North Korea',
+        'MN': 'Mongolia',
+        'KZ': 'Kazakhstan',
+        'UZ': 'Uzbekistan',
+        'TM': 'Turkmenistan',
+        'KG': 'Kyrgyzstan',
+        'TJ': 'Tajikistan',
+        'AF': 'Afghanistan',
+        'NP': 'Nepal',
+        'BT': 'Bhutan',
+        'MV': 'Maldives',
+        'JO': 'Jordan',
+        'LB': 'Lebanon',
+        'SY': 'Syria',
+        'IQ': 'Iraq',
+        'KW': 'Kuwait',
+        'QA': 'Qatar',
+        'BH': 'Bahrain',
+        'OM': 'Oman',
+        'YE': 'Yemen',
+      };
+
+      // Chỉ hiển thị quốc gia của các nhà cung cấp có liên quan đến hợp đồng đã lọc
+      const relevantSupplierIds = new Set(contracts.map(c => c.nhaCungCapId).filter(Boolean));
+      const relevantSuppliers = (user.role === "admin" || user.role === "grand_commander") 
+        ? suppliers 
+        : suppliers.filter(s => relevantSupplierIds.has(s.id));
+
+      for (const supplier of relevantSuppliers) {
         const code = supplier.maQuocGia;
-        if (!code) continue; // Bỏ qua nếu thiếu mã quốc gia
+        if (!code) continue;
 
         supplierCountryMap.set(code, (supplierCountryMap.get(code) ?? 0) + 1);
       }
 
       const supplierCountryData = Array.from(supplierCountryMap.entries())
-        .map(([name, value]) => ({ name: name, value }))
+        .map(([code, value]) => {
+          const supplier = relevantSuppliers.find(s => s.maQuocGia === code);
+          return { 
+            name: countryMap[code] || supplier?.diaChi || code, 
+            value 
+          };
+        })
         .filter((item) => item.value > 0);
 
       // World map data for countries with suppliers and contracts
-      const supplierMap = new Map<
-        string,
-        { count: number; suppliers: typeof suppliers }
-      >();
-      for (const supplier of suppliers) {
-        if (!supplier.maQuocGia) continue;
+      const worldMapDataMap = new Map<string, { count: number; suppliers: Set<number> }>();
 
-        if (!supplierMap.has(supplier.maQuocGia)) {
-          supplierMap.set(supplier.diaChi, {
-            count: 0,
-            suppliers: [],
-          });
+      for (const contract of contracts) {
+        if (!contract.nhaCungCapId) continue;
+        const supplier = suppliers.find(s => s.id === contract.nhaCungCapId);
+        if (!supplier || !supplier.maQuocGia) continue;
+
+        // Ưu tiên mapping, nếu không có thì dùng diaChi (tên quốc gia từ select), cuối cùng là mã
+        const countryName = countryMap[supplier.maQuocGia] || supplier.diaChi || supplier.maQuocGia;
+        if (!worldMapDataMap.has(countryName)) {
+          worldMapDataMap.set(countryName, { count: 0, suppliers: new Set() });
         }
-
-        const group = supplierMap.get(supplier.diaChi)!;
-        group.suppliers.push(supplier);
+        
+        const group = worldMapDataMap.get(countryName)!;
         group.count++;
+        group.suppliers.add(supplier.id);
       }
 
-      const worldMapData = [];
-
-      for (const [
-        countryCode,
-
-        { suppliers: countrySuppliers },
-      ] of Array.from(supplierMap.entries())) {
-        // Đếm hợp đồng liên quan
-        const contractCount = contracts.filter((contract) =>
-          countrySuppliers.some(
-            (supplier: any) => supplier.id === contract.nhaCungCapId
-          )
-        ).length;
-
-        if (contractCount > 0) {
-          // Lấy tọa độ trung bình từ các supplier trong quốc gia đó
-
-          worldMapData.push({
-            country: countryCode, // vẫn dùng mã quốc gia làm tên
-            count: contractCount,
-            suppliers: countrySuppliers.length,
-          });
-        }
-      }
+      const worldMapData = Array.from(worldMapDataMap.entries()).map(([country, stats]) => ({
+        country,
+        count: stats.count,
+        suppliers: stats.suppliers.size,
+      }));
 
       res.json({
         contractTypes: contractTypeData,
@@ -432,19 +576,24 @@ export async function registerRoutes(app: Express): Promise<void> {
   });
 
   app.post("/api/can-bo", async (req, res) => {
+    if (!req.isAuthenticated() || (req.user as any).role !== "admin") return res.status(403).json({ error: "Không có quyền" });
     try {
       const validatedData = insertCanBoSchema.parse(req.body);
       const items = await db
         .insert(schema.canBo)
         .values(validatedData)
         .returning();
-      res.status(201).json(items[0]);
+      
+      const newItem = items[0];
+      await logAction(req, "create", "cán_bộ", newItem.id, `Thêm cán bộ mới: ${newItem.ten}`);
+      res.status(201).json(newItem);
     } catch (error) {
       console.error("Error creating can bo:", error);
       res.status(500).json({ error: "Lỗi khi tạo cán bộ" });
     }
   });
   app.put("/api/can-bo/:id", async (req, res) => {
+    if (!req.isAuthenticated() || (req.user as any).role !== "admin") return res.status(403).json({ error: "Không có quyền" });
     try {
       const id = parseInt(req.params.id);
       const validatedData = insertCanBoSchema.parse(req.body);
@@ -459,6 +608,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(404).json({ error: "Không tìm thấy cán bộ" });
       }
 
+      await logAction(req, "update", "cán_bộ", id, `Cập nhật thông tin cán bộ: ${updated[0].ten}`);
       res.json(updated[0]);
     } catch (error) {
       console.error("Error updating can bo:", error);
@@ -466,9 +616,9 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
   app.delete("/api/can-bo/:id", async (req, res) => {
+    if (!req.isAuthenticated() || (req.user as any).role !== "admin") return res.status(403).json({ error: "Không có quyền" });
     try {
       const id = parseInt(req.params.id);
-      console.log(id);
       const deleted = await db
         .delete(schema.canBo)
         .where(eq(schema.canBo.id, id))
@@ -478,6 +628,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(404).json({ error: "Không tìm thấy cán bộ để xóa" });
       }
 
+      await logAction(req, "delete", "cán_bộ", id, `Xóa cán bộ: ${deleted[0].ten}`);
       res.json({ message: "Đã xóa cán bộ thành công", item: deleted[0] });
     } catch (error) {
       console.error("Error deleting can bo:", error);
@@ -712,24 +863,36 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   // Hợp đồng routes
   app.get("/api/hop-dong", async (req, res) => {
-    console.log("🔍 API /api/hop-dong được gọi");
-    const search = req.query.search;
-    console.log("Search:", search);
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Chưa đăng nhập" });
+    const { search } = req.query;
+    const user = req.user as any;
+    console.log("🔍 API /api/hop-dong được gọi, search:", search, "user:", user.username);
+
     try {
-      let items;
+      let query = db.select().from(schema.hopDong).$dynamic();
+      
+      // Phân quyền xem dữ liệu
+      if (user.role !== "admin" && user.role !== "grand_commander") {
+        if (user.phongBanId) {
+          query = query.where(eq(schema.hopDong.phongBanId, user.phongBanId));
+        } else {
+          // Trợ lý/chỉ huy phòng không có phòng ban -> không xem được
+          return res.json([]);
+        }
+      }
 
       if (search) {
         const keyword = `%${search}%`;
-        items = await db
-          .select()
-          .from(schema.hopDong)
-          .where(
-            sql`LOWER(${schema.hopDong.ten}) LIKE LOWER(${keyword}) OR LOWER(${schema.hopDong.soHdNgoai}) LIKE LOWER(${keyword})`
-          );
-      } else {
-        items = await db.select().from(schema.hopDong);
+        query = query.where(
+          or(
+            ilike(schema.hopDong.ten, keyword),
+            ilike(schema.hopDong.soHdNgoai, keyword),
+            ilike(schema.hopDong.soHdNoi, keyword)
+          )
+        );
       }
 
+      const items = await query;
       res.json(items);
     } catch (error) {
       console.error("Error fetching hop dong:", error);
@@ -738,12 +901,24 @@ export async function registerRoutes(app: Express): Promise<void> {
   });
 
   app.post("/api/hop-dong", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Chưa đăng nhập" });
+    const user = req.user as any;
+
     try {
-      const validatedData = insertHopDongSchema.parse(req.body);
+      const data = { ...req.body };
+      // Tự động gán phòng ban cho user thường
+      if (user.role !== "admin" && user.role !== "grand_commander") {
+        data.phongBanId = user.phongBanId;
+      }
+
+      const validatedData = insertHopDongSchema.parse(data);
       const items = await db
         .insert(schema.hopDong)
         .values(validatedData)
         .returning();
+      
+      await logAction(req, "create", "hop_dong", items[0].id, `Tạo hợp đồng: ${items[0].ten}`, items[0].id);
+      
       res.status(201).json(items[0]);
     } catch (error) {
       console.error("Error creating hop dong:", error);
@@ -810,30 +985,49 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   // Hóa đơn routes
   app.get("/api/hoa-don", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Chưa đăng nhập" });
+    const user = req.user as any;
     const { hopDongId, search } = req.query;
     try {
       if (search) {
         const keyword = `%${search}%`;
-        const items = await db
+        let query = db
           .select({
             hoaDon: schema.hoaDon,
             hopDong: schema.hopDong
           })
           .from(schema.hoaDon)
           .leftJoin(schema.hopDong, eq(schema.hoaDon.hopDongId, schema.hopDong.id))
-          .where(
+          .$dynamic();
+
+        if (user.role !== "admin" && user.role !== "grand_commander") {
+          query = query.where(and(
+            eq(schema.hopDong.phongBanId, user.phongBanId),
+            sql`LOWER(${schema.hopDong.soHdNgoai}) LIKE LOWER(${keyword}) OR LOWER(${schema.hopDong.soHdNoi}) LIKE LOWER(${keyword}) OR LOWER(${schema.hoaDon.tenHoaDon}) LIKE LOWER(${keyword})`
+          ));
+        } else {
+          query = query.where(
             sql`LOWER(${schema.hopDong.soHdNgoai}) LIKE LOWER(${keyword}) OR LOWER(${schema.hopDong.soHdNoi}) LIKE LOWER(${keyword}) OR LOWER(${schema.hoaDon.tenHoaDon}) LIKE LOWER(${keyword})`
           );
+        }
+        
+        const items = await query;
         return res.json(items.map(i => ({ ...i.hoaDon, hopDong: i.hopDong })));
       }
 
-      let query = db.select().from(schema.hoaDon).$dynamic();
+      let query = db.select({ hoaDon: schema.hoaDon }).from(schema.hoaDon).$dynamic();
+      
+      if (user.role !== "admin" && user.role !== "grand_commander") {
+        query = query.innerJoin(schema.hopDong, eq(schema.hoaDon.hopDongId, schema.hopDong.id))
+                     .where(eq(schema.hopDong.phongBanId, user.phongBanId));
+      }
+
       if (hopDongId) {
         query = query.where(eq(schema.hoaDon.hopDongId, Number(hopDongId)));
       }
 
       const items = await query;
-      res.json(items);
+      res.json(items.map(i => i.hoaDon || i));
     } catch (error) {
       console.error("Error fetching hoa don:", error);
       res.status(500).json({ error: "Lỗi khi lấy danh sách hóa đơn" });
@@ -888,14 +1082,22 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   // Loại văn bản pháp lý routes
   app.get("/api/loai-van-ban-phap-ly", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Chưa đăng nhập" });
+    const user = req.user as any;
     const { hopDongId } = req.query;
     try {
-      let query = db.select().from(schema.loaiVanBanPhapLy).$dynamic();
+      let query = db.select({ loaiVanBanPhapLy: schema.loaiVanBanPhapLy }).from(schema.loaiVanBanPhapLy).$dynamic();
+      
+      if (user.role !== "admin" && user.role !== "grand_commander") {
+        query = query.innerJoin(schema.hopDong, eq(schema.loaiVanBanPhapLy.hopDongId, schema.hopDong.id))
+                     .where(eq(schema.hopDong.phongBanId, user.phongBanId));
+      }
+
       if (hopDongId) {
         query = query.where(eq(schema.loaiVanBanPhapLy.hopDongId, Number(hopDongId)));
       }
       const items = await query;
-      res.json(items);
+      res.json(items.map(i => i.loaiVanBanPhapLy || i));
     } catch (error) {
       console.error("Error fetching loai van ban phap ly:", error);
       res.status(500).json({ error: "Lỗi server" });
@@ -950,30 +1152,47 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   // Văn bản pháp lý routes
   app.get("/api/van-ban-phap-ly", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Chưa đăng nhập" });
+    const user = req.user as any;
     const { hopDongId, search } = req.query;
     try {
       if (search) {
         const keyword = `%${search}%`;
-        const items = await db
+        let query = db
           .select({
             vanBan: schema.vanBanPhapLy,
             hopDong: schema.hopDong
           })
           .from(schema.vanBanPhapLy)
           .leftJoin(schema.hopDong, eq(schema.vanBanPhapLy.hopDongId, schema.hopDong.id))
-          .where(
+          .$dynamic();
+
+        if (user.role !== "admin" && user.role !== "grand_commander") {
+          query = query.where(and(
+            eq(schema.hopDong.phongBanId, user.phongBanId),
+            sql`LOWER(${schema.hopDong.soHdNgoai}) LIKE LOWER(${keyword}) OR LOWER(${schema.hopDong.soHdNoi}) LIKE LOWER(${keyword}) OR LOWER(${schema.vanBanPhapLy.tenVanBan}) LIKE LOWER(${keyword})`
+          ));
+        } else {
+          query = query.where(
             sql`LOWER(${schema.hopDong.soHdNgoai}) LIKE LOWER(${keyword}) OR LOWER(${schema.hopDong.soHdNoi}) LIKE LOWER(${keyword}) OR LOWER(${schema.vanBanPhapLy.tenVanBan}) LIKE LOWER(${keyword})`
           );
+        }
+        const items = await query;
         return res.json(items.map(i => ({ ...i.vanBan, hopDong: i.hopDong })));
       }
 
-      let query = db.select().from(schema.vanBanPhapLy).$dynamic();
+      let query = db.select({ vanBan: schema.vanBanPhapLy }).from(schema.vanBanPhapLy).$dynamic();
+      if (user.role !== "admin" && user.role !== "grand_commander") {
+        query = query.innerJoin(schema.hopDong, eq(schema.vanBanPhapLy.hopDongId, schema.hopDong.id))
+                     .where(eq(schema.hopDong.phongBanId, user.phongBanId));
+      }
+
       if (hopDongId) {
         query = query.where(eq(schema.vanBanPhapLy.hopDongId, Number(hopDongId)));
       }
 
       const items = await query;
-      res.json(items);
+      res.json(items.map(i => i.vanBan || i));
     } catch (error) {
       console.error("Error fetching van ban phap ly:", error);
       res.status(500).json({ error: "Lỗi khi lấy danh sách văn bản" });
@@ -1085,29 +1304,46 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   // Đoàn ra đoàn vào routes
   app.get("/api/doan-ra-vao", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Chưa đăng nhập" });
+    const user = req.user as any;
     const { hopDongId, search } = req.query;
     try {
       if (search) {
         const keyword = `%${search}%`;
-        const items = await db
+        let query = db
           .select({
             doan: schema.doanRaVao,
             hopDong: schema.hopDong
           })
           .from(schema.doanRaVao)
           .leftJoin(schema.hopDong, eq(schema.doanRaVao.hopDongId, schema.hopDong.id))
-          .where(
+          .$dynamic();
+
+        if (user.role !== "admin" && user.role !== "grand_commander") {
+          query = query.where(and(
+                eq(schema.hopDong.phongBanId, user.phongBanId),
+                sql`LOWER(${schema.hopDong.soHdNgoai}) LIKE LOWER(${keyword}) OR LOWER(${schema.hopDong.soHdNoi}) LIKE LOWER(${keyword}) OR LOWER(${schema.doanRaVao.tenDoan}) LIKE LOWER(${keyword})`
+          ));
+        } else {
+          query = query.where(
             sql`LOWER(${schema.hopDong.soHdNgoai}) LIKE LOWER(${keyword}) OR LOWER(${schema.hopDong.soHdNoi}) LIKE LOWER(${keyword}) OR LOWER(${schema.doanRaVao.tenDoan}) LIKE LOWER(${keyword})`
           );
+        }
+        const items = await query;
         return res.json(items.map(i => ({ ...i.doan, hopDong: i.hopDong })));
       }
 
-      let query = db.select().from(schema.doanRaVao).$dynamic();
+      let query = db.select({ doan: schema.doanRaVao }).from(schema.doanRaVao).$dynamic();
+      if (user.role !== "admin" && user.role !== "grand_commander") {
+        query = query.innerJoin(schema.hopDong, eq(schema.doanRaVao.hopDongId, schema.hopDong.id))
+                     .where(eq(schema.hopDong.phongBanId, user.phongBanId));
+      }
+
       if (hopDongId) {
         query = query.where(eq(schema.doanRaVao.hopDongId, Number(hopDongId)));
       }
       const items = await query;
-      res.json(items);
+      res.json(items.map(i => i.doan || i));
     } catch (error) {
       console.error("Error fetching doan ra vao:", error);
       res.status(500).json({ error: "Lỗi khi lấy danh sách đoàn" });
@@ -1161,21 +1397,39 @@ export async function registerRoutes(app: Express): Promise<void> {
   });
 
   app.put("/api/hop-dong/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Chưa đăng nhập" });
+    const user = req.user as any;
     const id = req.params.id;
+
     try {
-      // Validate dữ liệu đầu vào (nếu cần chỉnh sửa thì dùng schema riêng)
+      // Phân quyền sửa
+      if (user.role !== "admin" && user.role !== "grand_commander") {
+        const [existing] = await db.select().from(schema.hopDong).where(eq(schema.hopDong.id, Number(id)));
+        if (!existing || existing.phongBanId !== user.phongBanId) {
+          return res.status(403).json({ error: "Không có quyền cập nhật hợp đồng này" });
+        }
+      }
+
       const validatedData = insertHopDongSchema.parse(req.body);
-      console.log("Validated Data:", validatedData);
+      
+      // Chặn đổi phòng ban
+      if (user.role !== "admin" && user.role !== "grand_commander") {
+         validatedData.phongBanId = user.phongBanId;
+      }
+
       const updated = await db
         .update(schema.hopDong)
         .set(validatedData)
-        .where(eq(schema.hopDong.id, Number(id))) // Convert string id to number
+        .where(eq(schema.hopDong.id, Number(id)))
         .returning();
       if (updated.length === 0) {
         return res
           .status(404)
           .json({ error: "Không tìm thấy hợp đồng để cập nhật" });
       }
+      
+      await logAction(req, "update", "hop_dong", updated[0].id, `Cập nhật hợp đồng: ${updated[0].ten}`, updated[0].id);
+
       res.json(updated[0]);
     } catch (error) {
       console.error("Error updating hop dong:", error);
@@ -1184,11 +1438,22 @@ export async function registerRoutes(app: Express): Promise<void> {
   });
 
   app.delete("/api/hop-dong/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Chưa đăng nhập" });
+    const user = req.user as any;
     const id = req.params.id;
+
     try {
+      // Phân quyền xóa: chỉ admin, grand_commander hoặc người cùng phòng ban
+      if (user.role !== "admin" && user.role !== "grand_commander") {
+        const [existing] = await db.select().from(schema.hopDong).where(eq(schema.hopDong.id, Number(id)));
+        if (!existing || existing.phongBanId !== user.phongBanId) {
+          return res.status(403).json({ error: "Không có quyền xóa hợp đồng này" });
+        }
+      }
+
       const deleted = await db
         .delete(schema.hopDong)
-        .where(eq(schema.hopDong.id, Number(id))) // hoặc Number(id) nếu id là số
+        .where(eq(schema.hopDong.id, Number(id)))
         .returning();
 
       if (deleted.length === 0) {
@@ -1196,6 +1461,8 @@ export async function registerRoutes(app: Express): Promise<void> {
           .status(404)
           .json({ error: "Không tìm thấy hợp đồng để xóa" });
       }
+      
+      await logAction(req, "delete", "hop_dong", deleted[0].id, `Xóa hợp đồng: ${deleted[0].ten}`);
 
       res.json({ message: "Đã xóa hợp đồng thành công", item: deleted[0] });
     } catch (error) {
@@ -1206,9 +1473,24 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   // Thanh toán routes
   app.get("/api/thanh-toan", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Chưa đăng nhập" });
+    const user = req.user as any;
     try {
-      const items = await db.select().from(schema.thanhToan);
-      res.json(items);
+      let query = db.select({ thanhToan: schema.thanhToan }).from(schema.thanhToan).$dynamic();
+      
+      if (user.role !== "admin" && user.role !== "grand_commander") {
+        query = query
+          .innerJoin(schema.hopDong, eq(schema.thanhToan.hopDongId, schema.hopDong.id))
+          .where(
+            or(
+              eq(schema.hopDong.phongBanId, user.phongBanId),
+              eq(schema.hopDong.canBoId, user.canBoId)
+            )
+          );
+      }
+      
+      const items = await query;
+      res.json(items.map(i => i.thanhToan || i));
     } catch (error) {
       console.error("Error fetching thanh toan:", error);
       res.status(500).json({ error: "Lỗi server" });
@@ -1274,9 +1556,21 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   // Bước thực hiện routes
   app.get("/api/buoc-thuc-hien", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Chưa đăng nhập" });
+    const user = req.user as any;
     try {
-      const items = await db.select().from(schema.buocThucHien);
-      res.json(items);
+      let query = db.select({ buocThucHien: schema.buocThucHien }).from(schema.buocThucHien).$dynamic();
+      if (user.role !== "admin" && user.role !== "grand_commander") {
+        query = query.innerJoin(schema.hopDong, eq(schema.buocThucHien.hopDongId, schema.hopDong.id))
+                     .where(
+                       or(
+                         eq(schema.hopDong.phongBanId, user.phongBanId),
+                         eq(schema.hopDong.canBoId, user.canBoId)
+                       )
+                     );
+      }
+      const items = await query;
+      res.json(items.map(i => i.buocThucHien || i));
     } catch (error) {
       console.error("Error fetching buoc thuc hien:", error);
       res.status(500).json({ error: "Lỗi server" });
@@ -1336,9 +1630,21 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   // Lấy tất cả bản ghi cấp tiền
   app.get("/api/cap-tien", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Chưa đăng nhập" });
+    const user = req.user as any;
     try {
-      const items = await db.select().from(schema.capTien);
-      res.json(items);
+      let query = db.select({ capTien: schema.capTien }).from(schema.capTien).$dynamic();
+      if (user.role !== "admin" && user.role !== "grand_commander") {
+        query = query.innerJoin(schema.hopDong, eq(schema.capTien.hopDongId, schema.hopDong.id))
+                     .where(
+                       or(
+                         eq(schema.hopDong.phongBanId, user.phongBanId),
+                         eq(schema.hopDong.canBoId, user.canBoId)
+                       )
+                     );
+      }
+      const items = await query;
+      res.json(items.map(i => i.capTien || i));
     } catch (error) {
       console.error("Error fetching cap tien:", error);
       res.status(500).json({ error: "Lỗi server" });
@@ -1507,9 +1813,24 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   // Trang bị routes
   app.get("/api/trang-bi", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Chưa đăng nhập" });
+    const user = req.user as any;
     try {
-      const items = await db.select().from(schema.trangBi);
-      res.json(items);
+      let query = db.select({ trangBi: schema.trangBi }).from(schema.trangBi).$dynamic();
+      
+      if (user.role !== "admin" && user.role !== "grand_commander") {
+        query = query
+          .innerJoin(schema.hopDong, eq(schema.trangBi.hopDongId, schema.hopDong.id))
+          .where(
+            or(
+              eq(schema.hopDong.phongBanId, user.phongBanId),
+              eq(schema.hopDong.canBoId, user.canBoId)
+            )
+          );
+      }
+      
+      const items = await query;
+      res.json(items.map(i => i.trangBi || i));
     } catch (error) {
       console.error("Error fetching trang bi:", error);
       res.status(500).json({ error: "Lỗi server" });
@@ -1572,9 +1893,21 @@ export async function registerRoutes(app: Express): Promise<void> {
   });
   // File hợp đồng routes
   app.get("/api/file-hop-dong", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Chưa đăng nhập" });
+    const user = req.user as any;
     try {
-      const items = await db.select().from(schema.fileHopDong);
-      res.json(items);
+      let query = db.select({ fileHopDong: schema.fileHopDong }).from(schema.fileHopDong).$dynamic();
+      if (user.role !== "admin" && user.role !== "grand_commander") {
+        query = query.innerJoin(schema.hopDong, eq(schema.fileHopDong.hopDongId, schema.hopDong.id))
+                     .where(
+                       or(
+                         eq(schema.hopDong.phongBanId, user.phongBanId),
+                         eq(schema.hopDong.canBoId, user.canBoId)
+                       )
+                     );
+      }
+      const items = await query;
+      res.json(items.map(i => i.fileHopDong || i));
     } catch (error) {
       console.error("Error fetching file hop dong:", error);
       res.status(500).json({ error: "Lỗi server" });
@@ -1873,9 +2206,19 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   // Tiếp nhận routes
   app.get("/api/tiep-nhan", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Chưa đăng nhập" });
+    const user = req.user as any;
     try {
-      const items = await db.select().from(schema.tiepNhan);
-      res.json(items);
+      let query = db.select({ tiepNhan: schema.tiepNhan }).from(schema.tiepNhan).$dynamic();
+      
+      if (user.role !== "admin" && user.role !== "grand_commander") {
+        query = query
+          .innerJoin(schema.hopDong, eq(schema.tiepNhan.hopDongId, schema.hopDong.id))
+          .where(eq(schema.hopDong.phongBanId, user.phongBanId));
+      }
+      
+      const items = await query;
+      res.json(items.map(i => i.tiepNhan || i));
     } catch (error) {
       console.error("Error fetching tiep nhan:", error);
       res.status(500).json({ error: "Lỗi server" });
@@ -2362,6 +2705,164 @@ export async function registerRoutes(app: Express): Promise<void> {
     } catch (error) {
       console.error("Error deleting chi phi theo hop dong:", error);
       res.status(500).json({ error: "Lỗi server" });
+    }
+  });
+
+  // --- QUẢN LÝ PHÒNG BAN ---
+  app.get("/api/phong-ban", async (req, res) => {
+    try {
+      const items = await db.select().from(schema.phongBan);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching phong ban:", error);
+      res.status(500).json({ error: "Lỗi khi lấy danh sách phòng ban" });
+    }
+  });
+
+  app.post("/api/phong-ban", async (req, res) => {
+    if (!req.isAuthenticated() || (req.user as any).role !== "admin") return res.status(403).json({ error: "Không có quyền" });
+    try {
+      const { ten, moTa } = req.body;
+      const [newItem] = await db.insert(schema.phongBan).values({ ten, moTa }).returning();
+      await logAction(req, "create", "phong_ban", newItem.id, `Tạo phòng ban: ${newItem.ten}`);
+      res.status(201).json(newItem);
+    } catch (error) {
+      console.error("Error creating phong ban:", error);
+      res.status(500).json({ error: "Lỗi khi tạo phòng ban" });
+    }
+  });
+  
+  app.put("/api/phong-ban/:id", async (req, res) => {
+    if (!req.isAuthenticated() || (req.user as any).role !== "admin") return res.status(403).json({ error: "Không có quyền" });
+    try {
+      const id = Number(req.params.id);
+      const { ten, moTa } = req.body;
+      const [updated] = await db.update(schema.phongBan).set({ ten, moTa }).where(eq(schema.phongBan.id, id)).returning();
+      if (!updated) return res.status(404).json({ error: "Không tìm thấy" });
+      await logAction(req, "update", "phong_ban", updated.id, `Cập nhật phòng ban: ${updated.ten}`);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating phong ban:", error);
+      res.status(500).json({ error: "Lỗi khi cập nhật phòng ban" });
+    }
+  });
+
+  app.delete("/api/phong-ban/:id", async (req, res) => {
+    if (!req.isAuthenticated() || (req.user as any).role !== "admin") return res.status(403).json({ error: "Không có quyền" });
+    try {
+      const id = Number(req.params.id);
+      const [deleted] = await db.delete(schema.phongBan).where(eq(schema.phongBan.id, id)).returning();
+      if (!deleted) return res.status(404).json({ error: "Không tìm thấy" });
+      await logAction(req, "delete", "phong_ban", deleted.id, `Xóa phòng ban: ${deleted.ten}`);
+      res.json({ message: "Xóa thành công", item: deleted });
+    } catch (error) {
+      console.error("Error deleting phong ban:", error);
+      res.status(500).json({ error: "Lỗi khi xóa phòng ban" });
+    }
+  });
+
+  // --- QUẢN LÝ USER ---
+  app.get("/api/users", async (req, res) => {
+    if (!req.isAuthenticated() || (req.user as any).role !== "admin") return res.status(403).json({ error: "Không có quyền" });
+    try {
+      const items = await db.select({
+        id: schema.users.id,
+        username: schema.users.username,
+        role: schema.users.role,
+        phongBanId: schema.users.phongBanId,
+        canBoId: schema.users.canBoId
+      }).from(schema.users);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Lỗi khi lấy danh sách user" });
+    }
+  });
+
+  app.post("/api/users", async (req, res) => {
+    if (!req.isAuthenticated() || (req.user as any).role !== "admin") return res.status(403).json({ error: "Không có quyền" });
+    try {
+      const { username, password, role, phongBanId, canBoId } = req.body;
+      const { hashPassword } = await import("./auth");
+      
+      const [existingUser] = await db.select().from(schema.users).where(eq(schema.users.username, username)).limit(1);
+      if (existingUser) return res.status(400).json({ error: "Tên đăng nhập đã tồn tại" });
+
+      const hashedPassword = await hashPassword(password);
+      const [user] = await db.insert(schema.users).values({
+        username,
+        password: hashedPassword,
+        role: role || "assistant",
+        phongBanId: phongBanId || null,
+        canBoId: canBoId || null,
+      }).returning({ id: schema.users.id, username: schema.users.username });
+
+      // Cập nhật audit nếu cần, global logger sẽ tự bắt, nhưng ta có action cụ thể thì tốt hơn:
+      (req as any).audited = true; // prevent double log
+      const { logAction: globalLog } = await import("./audit");
+      await globalLog(req, "create", "tài_khoản", user.id, `Tạo tài khoản mới: ${user.username}`);
+
+      res.status(201).json(user);
+    } catch (error) {
+      console.error("Error creating user:", error);
+      res.status(500).json({ error: "Lỗi khi tạo user" });
+    }
+  });
+
+  app.put("/api/users/:id", async (req, res) => {
+    if (!req.isAuthenticated() || (req.user as any).role !== "admin") return res.status(403).json({ error: "Không có quyền" });
+    try {
+      const id = Number(req.params.id);
+      const { username, password, role, phongBanId, canBoId } = req.body;
+      let valuesToUpdate: any = { username, role, phongBanId, canBoId };
+      
+      if (password && password.trim() !== "") {
+        const { hashPassword } = await import("./auth");
+        valuesToUpdate.password = await hashPassword(password);
+      }
+
+      const [updated] = await db.update(schema.users).set(valuesToUpdate).where(eq(schema.users.id, id)).returning({ id: schema.users.id, username: schema.users.username, role: schema.users.role, phongBanId: schema.users.phongBanId, canBoId: schema.users.canBoId });
+      
+      if (!updated) return res.status(404).json({ error: "Không tìm thấy" });
+      
+      (req as any).audited = true;
+      const { logAction: globalLog } = await import("./audit");
+      await globalLog(req, "update", "tài_khoản", updated.id, `Cập nhật tài khoản: ${updated.username}`);
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ error: "Lỗi khi cập nhật user" });
+    }
+  });
+
+  app.delete("/api/users/:id", async (req, res) => {
+    if (!req.isAuthenticated() || (req.user as any).role !== "admin") return res.status(403).json({ error: "Không có quyền" });
+    try {
+      const id = Number(req.params.id);
+      const [deleted] = await db.delete(schema.users).where(eq(schema.users.id, id)).returning({ id: schema.users.id, username: schema.users.username });
+      
+      if (!deleted) return res.status(404).json({ error: "Không tìm thấy" });
+      (req as any).audited = true;
+      const { logAction: globalLog } = await import("./audit");
+      await globalLog(req, "delete", "tài_khoản", deleted.id, `Xóa tài khoản: ${deleted.username}`);
+
+      res.json({ message: "Xóa thành công", item: deleted });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ error: "Lỗi khi xóa tài khoản" });
+    }
+  });
+
+  // --- QUẢN LÝ AUDIT LOGS ---
+  app.get("/api/audit-logs", async (req, res) => {
+    if (!req.isAuthenticated() || (req.user as any).role !== "admin") return res.status(403).json({ error: "Không có quyền" });
+    try {
+      const items = await db.select().from(schema.auditLogs).orderBy(sql`${schema.auditLogs.timestamp} DESC`).limit(200);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      res.status(500).json({ error: "Lỗi khi lấy lịch sử thao tác" });
     }
   });
 }

@@ -120,7 +120,8 @@ function createTables() {
       so_bien_ban_thanh_ly TEXT,
       ngay_bien_ban_thanh_ly TEXT,
       so_bien_ban_ban_giao_dong_bo TEXT,
-      ngay_bien_ban_ban_giao_dong_bo TEXT
+      ngay_bien_ban_ban_giao_dong_bo TEXT,
+      phong_ban_id INTEGER
     );
     
     CREATE TABLE IF NOT EXISTS trang_bi (
@@ -243,7 +244,26 @@ function createTables() {
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL
+      password TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'assistant',
+      phong_ban_id INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS phong_ban (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ten TEXT NOT NULL,
+      mo_ta TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      action TEXT NOT NULL,
+      target_type TEXT NOT NULL,
+      target_id INTEGER,
+      timestamp TEXT NOT NULL,
+      details TEXT,
+      hop_dong_id INTEGER
     );
     CREATE TABLE IF NOT EXISTS dieu_kien_giao_hang (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -472,6 +492,29 @@ function addMissingColumns() {
   try {
     sqlite.exec(`ALTER TABLE buoc_thuc_hien ADD COLUMN can_bo_phu_trach_id INTEGER`);
     console.log(`Added column can_bo_phu_trach_id to buoc_thuc_hien table`);
+  } catch (e) { }
+
+  // RBAC Columns
+  try {
+    sqlite.exec(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'assistant'`);
+    console.log(`Added column role to users table`);
+  } catch (e) { }
+
+  try {
+    sqlite.exec(`ALTER TABLE users ADD COLUMN phong_ban_id INTEGER`);
+    console.log(`Added column phong_ban_id to users table`);
+  } catch (e) { }
+
+  try {
+    sqlite.exec(`ALTER TABLE users ADD COLUMN can_bo_id INTEGER`);
+    console.log(`Added column can_bo_id to users table`);
+  } catch (e) {
+    // Column might already exist
+  }
+  
+  try {
+    sqlite.exec(`ALTER TABLE hop_dong ADD COLUMN phong_ban_id INTEGER`);
+    console.log(`Added column phong_ban_id to hop_dong table`);
   } catch (e) { }
 }
 

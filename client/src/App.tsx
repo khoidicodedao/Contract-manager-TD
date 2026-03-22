@@ -30,6 +30,9 @@ import LetterOfCredit from "@/pages/letter-of-credit";
 import ActualCosts from "@/pages/actual-costs";
 import PlannedCosts from "@/pages/planned-costs";
 import CostTypes from "@/pages/cost-types";
+import Departments from "@/pages/departments";
+import UsersPage from "@/pages/users";
+import AuditLogs from "@/pages/audit-logs";
 
 function Router() {
   console.log("Current pathname:", window.location.hash); // 👈 debug ở đây
@@ -227,6 +230,30 @@ function Router() {
         component={() => (
           <ProtectedRoute>
             <PlannedCosts />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/phong-ban"
+        component={() => (
+          <ProtectedRoute>
+            <Departments />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/users"
+        component={() => (
+          <ProtectedRoute>
+            <UsersPage />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/audit-logs"
+        component={() => (
+          <ProtectedRoute>
+            <AuditLogs />
           </ProtectedRoute>
         )}
       />

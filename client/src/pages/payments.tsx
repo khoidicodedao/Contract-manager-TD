@@ -30,7 +30,7 @@ import {
   Calendar,
   Download,
 } from "lucide-react";
-import { ThanhToan } from "@shared/schema";
+import { ThanhToan, HopDong, ChuDauTu, LoaiTien, LoaiThanhToan, LoaiHinhThucThanhToan, CanBo } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import React from "react";
@@ -88,24 +88,24 @@ export default function Payments() {
     queryKey: ["/api/thanh-toan"],
   });
 
-  const { data: contracts = [] } = useQuery({
+  const { data: contracts = [] } = useQuery<HopDong[]>({
     queryKey: ["/api/hop-dong"],
   });
-  const { data: chuDauTu = [] } = useQuery<any[]>({
+  const { data: chuDauTu = [] } = useQuery<ChuDauTu[]>({
     queryKey: ["/api/chu-dau-tu"],
   });
-  const { data: loaiTien = [] } = useQuery({
+  const { data: loaiTien = [] } = useQuery<LoaiTien[]>({
     queryKey: ["/api/loai-tien"],
   });
 
-  const { data: loaiThanhToan = [] } = useQuery({
+  const { data: loaiThanhToan = [] } = useQuery<LoaiThanhToan[]>({
     queryKey: ["/api/loai-thanh-toan"],
   });
 
-  const { data: loaiHinhThucThanhToan = [] } = useQuery({
+  const { data: loaiHinhThucThanhToan = [] } = useQuery<LoaiHinhThucThanhToan[]>({
     queryKey: ["/api/loai-hinh-thuc-thanh-toan"],
   });
-  const { data: canBo = [] } = useQuery<any[]>({
+  const { data: canBo = [] } = useQuery<CanBo[]>({
     queryKey: ["/api/can-bo"],
   });
 
@@ -229,7 +229,7 @@ export default function Payments() {
   };
 
   const overdueCount = payments.filter((p) => {
-    const status = getPaymentStatus(p.hanHopDong, p.hanThucHien, p.daThanhToan);
+    const status = getPaymentStatus(p.hanHopDong, p.hanThucHien, p.daThanhToan ?? false);
     return status.label === "Quá hạn";
   }).length;
   // Hàm xuất Excel
@@ -238,14 +238,15 @@ export default function Payments() {
       (acc, { contract, payments }) => {
         if (!payments.length) return acc;
 
-        acc[contract.soHdNgoai] = acc[contract.soHdNgoai] || [];
+        const contractKey = contract.soHdNgoai || contract.soHdNoi || `HD-${contract.id}`;
+        acc[contractKey] = acc[contractKey] || [];
         payments.forEach((payment) => {
           // Lấy thông tin chủ đầu tư và cán bộ theo dõi
           const chuDauTuName = contract.chuDauTuId
-            ? chuDauTu.find((c) => c.id === contract.chuDauTuId)?.ten
+            ? chuDauTu.find((c: ChuDauTu) => c.id === contract.chuDauTuId)?.ten
             : "-";
           const canBoName = contract.canBoId
-            ? canBo.find((c) => c.id === contract.canBoId)?.ten
+            ? canBo.find((c: CanBo) => c.id === contract.canBoId)?.ten
             : "-";
 
           // Lấy thông tin loại tiền và tỷ giá từ hợp đồng và thanh toán
@@ -253,8 +254,8 @@ export default function Payments() {
             loaiTien.find((lt) => lt.id === contract.loaiTienId)?.ten || "VND";
           const tyGia = contract.tyGia ?? "-";
 
-          acc[contract.soHdNgoai].push({
-            "Số hợp đồng ngoài": contract.soHdNgoai,
+          acc[contractKey].push({
+            "Số hợp đồng ngoài": contract.soHdNgoai || "-",
             "Chủ đầu tư": chuDauTuName,
             "Tên hợp đồng": contract.ten,
             "Tên cán bộ theo dõi": canBoName,
@@ -266,7 +267,7 @@ export default function Payments() {
             "Trạng thái thanh toán": payment.daThanhToan
               ? "Đã thanh toán"
               : "Chưa thanh toán",
-            "Hạn hợp đồng": contract.hanHopDong,
+            "Hạn hợp đồng": payment.hanHopDong,
             "Hạn thực hiện": payment.hanThucHien,
             "Ghi chú": payment.ghiChu,
           });
@@ -276,7 +277,7 @@ export default function Payments() {
       {} as Record<string, any[]>
     );
 
-    const rows = [];
+    const rows: any[] = [];
     // Duyệt qua từng hợp đồng và thêm dữ liệu vào bảng
     for (const contract in groupedByContract) {
       groupedByContract[contract].forEach((payment) => {
@@ -336,7 +337,7 @@ export default function Payments() {
                           const status = getPaymentStatus(
                             p.hanHopDong,
                             p.hanThucHien,
-                            p.daThanhToan
+                            p.daThanhToan ?? false
                           );
                           return status.label === "Sắp đến hạn";
                         }).length
@@ -444,7 +445,7 @@ export default function Payments() {
                           .filter((p) => p.daThanhToan)
                           .reduce(
                             (sum, p) =>
-                              sum + (parseFloat(p.soTien || "0") || 0),
+                              sum + (Number(p.soTien ?? 0) || 0),
                             0
                           ),
                       };
@@ -479,7 +480,7 @@ export default function Payments() {
                                       <Progress
                                         value={
                                           (contractPaymentSummary.paidAmount /
-                                            contractPaymentSummary.totalAmount) *
+                                            (contractPaymentSummary.totalAmount || 1)) *
                                           100
                                         }
                                         className="h-2"
@@ -496,7 +497,7 @@ export default function Payments() {
                                       "vi-VN"
                                     )}{" "}
                                     {loaiTien.find(
-                                      (lt: any) =>
+                                      (lt: LoaiTien) =>
                                         lt.id ===
                                         contractPaymentSummary.loaiTienId
                                     )?.ten || "VND"}{" "}
@@ -511,7 +512,7 @@ export default function Payments() {
                                       contractPaymentSummary.paidAmount
                                     ).toLocaleString("vi-VN")}{" "}
                                     {loaiTien.find(
-                                      (lt: any) =>
+                                      (lt: LoaiTien) =>
                                         lt.id ===
                                         contractPaymentSummary.loaiTienId
                                     )?.ten || "VND"}{" "}
@@ -574,11 +575,11 @@ export default function Payments() {
                                           Số tiền:
                                         </span>
                                         <p className="font-medium text-lg text-green-600">
-                                          {parseFloat(
-                                            payment.soTien || "0"
+                                          {Number(
+                                            payment.soTien ?? 0
                                           ).toLocaleString("vi-VN")}{" "}
                                           {loaiTien.find(
-                                            (lt: any) =>
+                                            (lt: LoaiTien) =>
                                               lt.id === payment.loaiTienId
                                           )?.ten || "VND"}
                                         </p>
@@ -589,7 +590,7 @@ export default function Payments() {
                                         </span>
                                         <p className="font-medium">
                                           {loaiThanhToan.find(
-                                            (lt: any) =>
+                                            (lt: LoaiThanhToan) =>
                                               lt.id === payment.loaiThanhToanId
                                           )?.ten || "Chưa xác định"}
                                         </p>
@@ -600,7 +601,7 @@ export default function Payments() {
                                         </span>
                                         <p className="font-medium">
                                           {loaiHinhThucThanhToan.find(
-                                            (lh: any) =>
+                                            (lh: LoaiHinhThucThanhToan) =>
                                               lh.id ===
                                               payment.loaiHinhThucThanhToanId
                                           )?.ten || "Chưa xác định"}

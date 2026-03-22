@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericFormatInput } from "@/components/ui/numeric-format-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -59,7 +60,7 @@ export default function PaymentModal({
           noiDung: payment.noiDung || "",
           hanHopDong: payment.hanHopDong || "",
           hanThucHien: payment.hanThucHien || "",
-          soTien: payment.soTien || "",
+          soTien: payment.soTien ?? 0,
           daThanhToan: payment.daThanhToan ?? false, // ✅ Thêm dòng này
         }
       : {
@@ -67,7 +68,7 @@ export default function PaymentModal({
           noiDung: "",
           hanHopDong: "",
           hanThucHien: "",
-          soTien: "",
+          soTien: 0,
           daThanhToan: false, // ✅ Thêm dòng này
         },
   });
@@ -230,12 +231,10 @@ export default function PaymentModal({
                   <FormItem>
                     <FormLabel>Số tiền</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
+                      <NumericFormatInput
                         placeholder="Nhập số tiền"
-                        {...field}
-                        value={field.value ?? ""}
-                        onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                        value={typeof field.value === 'string' ? parseInt(field.value) : field.value}
+                        onChange={field.onChange}
                       />
                     </FormControl>
                     <FormMessage />

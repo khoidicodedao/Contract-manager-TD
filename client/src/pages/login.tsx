@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { login } from "@/lib/auth";
-import { User, Lock } from "lucide-react"; // 👈 Icon
+import { User, Lock } from "lucide-react";
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
@@ -9,13 +11,24 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleLogin = () => {
-    if (username === "admin" && password === "admin") {
-      login("fake-token");
+  const loginMutation = useMutation({
+    mutationFn: async () => await apiRequest("POST", "/api/login", { username, password }),
+    onSuccess: () => {
+      login("established-session"); // Lưu flag để validate cho ProtectedRoute
       navigate("/");
-    } else {
-      setError("Sai tên đăng nhập hoặc mật khẩu");
+    },
+    onError: (err: any) => {
+      setError(err.message || "Sai tên đăng nhập hoặc mật khẩu");
     }
+  });
+
+  const handleLogin = () => {
+    if (!username || !password) {
+      setError("Vui lòng nhập đầy đủ thông tin");
+      return;
+    }
+    setError("");
+    loginMutation.mutate();
   };
 
   useEffect(() => {

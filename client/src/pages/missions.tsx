@@ -20,7 +20,8 @@ import {
     Building2,
     DollarSign,
     ArrowUpRight,
-    ArrowDownLeft
+    ArrowDownLeft,
+    Users
 } from "lucide-react";
 import {
     DoanRaVao,
@@ -110,6 +111,17 @@ export default function Missions() {
         return new Intl.NumberFormat('vi-VN').format(amount) + " " + (currency?.ten || "");
     };
 
+    const stats = useMemo(() => {
+        let outbound = 0;
+        let inbound = 0;
+        missions.forEach(m => {
+            const type = missionTypes.find(t => t.id === m.loaiDoanId);
+            if (type?.phanLoai === "đoàn ra") outbound++;
+            else if (type?.phanLoai === "đoàn vào") inbound++;
+        });
+        return { outbound, inbound, total: missions.length };
+    }, [missions, missionTypes]);
+
     const handleExportAll = () => {
         const exportData = missions.map((m) => {
             const contract = getContractInfo(m.hopDongId);
@@ -168,6 +180,43 @@ export default function Missions() {
                 />
 
                 <main className="flex-1 overflow-auto p-6">
+                    {/* Stats Section */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <Card className="bg-white border-slate-200">
+                            <CardContent className="p-4 flex items-center gap-4">
+                                <div className="p-3 bg-blue-100 rounded-lg text-blue-600">
+                                    <Plane className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-slate-500 font-medium">Tổng số đoàn</p>
+                                    <h3 className="text-2xl font-bold">{stats.total}</h3>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card className="bg-white border-slate-200">
+                            <CardContent className="p-4 flex items-center gap-4">
+                                <div className="p-3 bg-amber-100 rounded-lg text-amber-600">
+                                    <ArrowUpRight className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-slate-500 font-medium">Đoàn ra</p>
+                                    <h3 className="text-2xl font-bold text-amber-600">{stats.outbound}</h3>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card className="bg-white border-slate-200">
+                            <CardContent className="p-4 flex items-center gap-4">
+                                <div className="p-3 bg-sky-100 rounded-lg text-sky-600">
+                                    <ArrowDownLeft className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-slate-500 font-medium">Đoàn vào</p>
+                                    <h3 className="text-2xl font-bold text-sky-600">{stats.inbound}</h3>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                         <div className="relative flex-1 max-w-md">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />

@@ -21,8 +21,9 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { FileText, Package, CreditCard, Clock, Globe, BarChart3 } from "lucide-react";
+import { FileText, Package, CreditCard, Clock, Globe, BarChart3, TrendingUp, Wallet, CheckCircle2, AlertCircle, ArrowUpRight } from "lucide-react";
 import WorldMap from "@/components/charts/world-map";
+import { Progress } from "@/components/ui/progress";
 import React from "react";
 
 const COLORS = [
@@ -35,18 +36,28 @@ const COLORS = [
 ];
 
 export default function Dashboard() {
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading } = useQuery<any>({
     queryKey: ["/api/system/overview"],
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: 30000, // 30s
   });
 
-  const { data: chartData, isLoading: isChartsLoading } = useQuery({
+  const { data: chartData, isLoading: isChartsLoading } = useQuery<any>({
     queryKey: ["/api/dashboard/charts"],
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: 30000, // 30s
   });
 
   const { data: equipment = [] } = useQuery<any[]>({
     queryKey: ["/api/trang-bi"],
   });
-  const { data: equipmentTypes } = useQuery({
+  const { data: equipmentTypes } = useQuery<any[]>({
     queryKey: ["/api/loai-trang-bi"],
   });
   const equipmentChartData = React.useMemo(() => {
@@ -345,101 +356,101 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            {/* Value Summary */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Giá trị thực hiện hợp đồng</CardTitle>
+            {/* Value Summary - IMPROVED */}
+            <Card className="overflow-hidden border-none shadow-xl bg-gradient-to-br from-white to-slate-50">
+              <CardHeader className="border-b bg-white/50 pb-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg font-bold flex items-center gap-2">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <TrendingUp className="w-5 h-5 text-blue-600" />
+                    </div>
+                    Tình hình thực hiện tài chính
+                  </CardTitle>
+                  <ArrowUpRight className="w-5 h-5 text-slate-400" />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">
-                      Hợp đồng đang hoạt động:
-                    </span>
-                    <span className="text-lg font-bold text-blue-600">
-                      {stats?.activeContracts || 0}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">
-                      Tiến độ hoàn thành:
-                    </span>
-                    <span className="text-lg font-bold text-purple-600">
-                      {stats?.completedSteps || 0}/
-                      {stats?.totalProgressSteps || 0} bước
-                    </span>
-                  </div>
-                  <div className="flex">
-                    <div className="flex-1">
-                      <div className="mt-4 p-4">
-                        <h4 className="font-medium text-sm mb-2">
-                          Giá trị hợp đồng theo tiền tệ:
-                        </h4>
-                        {stats?.totalValueByCurrency?.map(
-                          (item: any, index: number) => (
-                            <div
-                              key={index}
-                              className="flex justify-between items-center py-1"
-                            >
-                              <div className="flex items-center">
-                                <div
-                                  className="w-3 h-3 rounded-full mr-2"
-                                  style={{
-                                    backgroundColor:
-                                      COLORS[index % COLORS.length],
-                                  }}
-                                />
-                                <span className="text-xs">{item.currency}</span>
-                              </div>
-                              <span className="text-xs font-medium">
-                                {(item.totalValue / 1000000000).toFixed(1)} tỷ{" "}
-                                {item.currency}
-                              </span>
-                            </div>
-                          )
-                        )}
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 gap-8">
+                  {/* Row 1: Key Metrics */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-white rounded-xl border shadow-sm">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                        Hợp đồng đang chạy
+                      </p>
+                      <div className="flex items-end gap-2">
+                        <span className="text-2xl font-black text-slate-900">
+                          {stats?.activeContracts || 0}
+                        </span>
+                        <span className="text-xs text-slate-400 mb-1">bản</span>
                       </div>
                     </div>
-                    <div className="flex-1">
-                      <div className="mt-4 p-4 ">
-                        <h4 className="font-medium text-sm mb-2">
-                          Chi tiết loại hợp đồng:
-                        </h4>
-                        {chartData?.contractTypes?.map(
-                          (item: any, index: number) => (
-                            <div
-                              key={index}
-                              className="flex justify-between items-center py-1"
-                            >
-                              <div className="flex items-center">
-                                <div
-                                  className="w-3 h-3 rounded-full mr-2"
-                                  style={{
-                                    backgroundColor:
-                                      COLORS[index % COLORS.length],
-                                  }}
-                                />
-                                <span className="text-xs">{item.name}</span>
-                              </div>
-                              <span className="text-xs font-medium">
-                                {item.value} hợp đồng
-                              </span>
-                            </div>
-                          )
-                        )}
+                    <div className="p-4 bg-white rounded-xl border shadow-sm">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                        Tiến độ thực hiện
+                      </p>
+                      <div className="flex items-end gap-1">
+                        <span className="text-2xl font-black text-blue-600">
+                          {stats?.totalProgressSteps > 0 
+                            ? Math.round((stats.completedSteps / stats.totalProgressSteps) * 100) 
+                            : 0}%
+                        </span>
+                        <span className="text-xs text-slate-400 mb-1">TB</span>
                       </div>
+                      <Progress 
+                        value={stats?.totalProgressSteps > 0 ? (stats.completedSteps / stats.totalProgressSteps) * 100 : 0} 
+                        className="h-1.5 mt-2 bg-blue-50"
+                      />
                     </div>
                   </div>
-                  <div className="mt-4 p-4 bg-slate-50 rounded-lg border">
-                    <h4 className="font-semibold text-sm text-gray-700 mb-1">
-                      Tổng giá trị ủy thác
-                    </h4>
-                    <p className="text-xl font-bold text-slate-900">
-                      {stats?.totalUyThacByCurrency
-                        ?.reduce((sum, item) => sum + item.totalValue, 0)
-                        .toLocaleString("vi-VN")}{" "}
-                      VND
-                    </p>
+
+                  {/* Row 2: Payment Progress */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                          <CreditCard className="w-4 h-4 text-emerald-500" />
+                          Tiến độ giải ngân (VND quy đổi)
+                        </h4>
+                      </div>
+                      <span className="text-xs font-medium text-slate-500">
+                        {Math.round(((stats?.totalPaidValue || 0) / (stats?.totalValueVND || 1)) * 100)}%
+                      </span>
+                    </div>
+                    <Progress 
+                      value={((stats?.totalPaidValue || 0) / (stats?.totalValueVND || 1)) * 100} 
+                      className="h-3 bg-slate-100"
+                    />
+                    <div className="flex justify-between text-[10px] font-bold uppercase tracking-tight text-slate-400">
+                      <span>Đã chi: {(stats?.totalPaidValue / 1000000000).toFixed(2)} tỷ</span>
+                      <span>Tổng: {(stats?.totalValueVND / 1000000000).toFixed(2)} tỷ</span>
+                    </div>
+                  </div>
+
+                  {/* Row 3: Fees Only */}
+                  <div className="pt-2">
+                    <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 relative overflow-hidden group">
+                      <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform">
+                        <CheckCircle2 className="w-24 h-24 text-emerald-600" />
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h4 className="text-[10px] font-black text-emerald-700 uppercase mb-1">
+                            Tổng phí ủy thác (VND)
+                          </h4>
+                          <p className="text-2xl font-black text-emerald-900">
+                            {stats?.totalUyThacByCurrency
+                              ?.reduce((sum: number, item: any) => sum + item.totalValue, 0)
+                              .toLocaleString("vi-VN")}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-bold justify-end">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Hệ thống ghi nhận
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardContent>

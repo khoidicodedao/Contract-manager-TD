@@ -24,7 +24,7 @@ import {
 import ContractModal from "@/components/modals/contract-modal";
 import ContractViewModal from "@/components/modals/contract-view-modal";
 import { Eye, Edit, Trash2, Search, Filter, Plus, File } from "lucide-react";
-import { HopDong } from "@shared/schema";
+import { HopDong, NhaCungCap, ChuDauTu, CanBo, LoaiHopDong } from "@shared/schema";
 import {
   CONTRACT_STATUS_LABELS,
   CONTRACT_STATUS_COLORS,
@@ -51,21 +51,25 @@ export default function Contracts() {
     queryKey: ["/api/hop-dong"],
   });
 
-  const { data: contractTypes = [] } = useQuery({
+  const { data: contractTypes = [] } = useQuery<LoaiHopDong[]>({
     queryKey: ["/api/loai-hop-dong"],
   });
 
   // Fetch reference data to display detailed information instead of IDs
-  const { data: nhaCungCap = [] } = useQuery({
+  const { data: nhaCungCap = [] } = useQuery<NhaCungCap[]>({
     queryKey: ["/api/nha-cung-cap"],
   });
 
-  const { data: chuDauTu = [] } = useQuery({
+  const { data: chuDauTu = [] } = useQuery<ChuDauTu[]>({
     queryKey: ["/api/chu-dau-tu"],
   });
 
-  const { data: canBo = [] } = useQuery({
+  const { data: canBo = [] } = useQuery<CanBo[]>({
     queryKey: ["/api/can-bo"],
+  });
+
+  const { data: departments = [] } = useQuery<any[]>({
+    queryKey: ["/api/phong-ban"],
   });
 
   const deleteContractMutation = useMutation({
@@ -74,16 +78,17 @@ export default function Contracts() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/hop-dong"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/system/overview"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/charts"] });
       toast({
-        title: "Thành công",
-        description: "Hợp đồng đã được xóa",
+        title: "Thanh cong",
+        description: "Hop dong da duoc xoa",
       });
     },
     onError: () => {
       toast({
-        title: "Lỗi",
-        description: "Không thể xóa hợp đồng",
+        title: "Loi",
+        description: "Khong the xoa hop dong",
         variant: "destructive",
       });
     },
@@ -217,6 +222,7 @@ export default function Contracts() {
                         <TableHead>Số hợp đồng</TableHead>
                         <TableHead>Tên hợp đồng</TableHead>
                         <TableHead>Chủ đầu tư</TableHead>
+                        <TableHead>Phòng ban</TableHead>
                         <TableHead>Ngày ký</TableHead>
                         <TableHead>Nhà cung cấp</TableHead>
                         <TableHead>Trạng thái</TableHead>
@@ -247,20 +253,21 @@ export default function Contracts() {
                           </TableCell>
                           <TableCell>
                             <div>
-                              <div className="font-medium text-slate-900">
-                                {/* @ts-ignore */}
-                                {chuDauTu.find(
-                                  (cdt) => cdt.id == contract.chuDauTuId
-                                )?.ten || "Chưa có tên"}
-                              </div>
+                               <div className="font-medium text-slate-900">
+                                {chuDauTu.find((c) => c.id === contract.chuDauTuId)?.ten || "-"}
+                               </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm font-medium text-blue-600">
+                                {departments.find(d => d.id === contract.phongBanId)?.ten || "-"}
                             </div>
                           </TableCell>
                           <TableCell>{formatDate(contract.ngay)}</TableCell>
                           <TableCell>
                             <div className="font-medium text-slate-900">
-                              {/* @ts-ignore */}
                               {nhaCungCap.find(
-                                (ncc) => ncc.id === contract.nhaCungCapId
+                                (ncc: NhaCungCap) => ncc.id === contract.nhaCungCapId
                               )?.ten || "Chưa có nhà cung cấp"}
                             </div>
                           </TableCell>

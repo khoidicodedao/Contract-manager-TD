@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericFormatInput } from "@/components/ui/numeric-format-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -53,7 +54,7 @@ export default function EquipmentModal({
           ten: equipment.ten || "",
           moTa: equipment.moTa || "",
           soLuong: equipment.soLuong || 1,
-          donGia: equipment.donGia || "",
+          donGia: equipment.donGia,
           loaiTrangBiId: equipment.loaiTrangBiId,
           trangThai: equipment.trangThai || "",
           ngayMua: equipment.ngayMua || "",
@@ -66,7 +67,7 @@ export default function EquipmentModal({
           ten: "",
           moTa: "",
           soLuong: 1,
-          donGia: "",
+          donGia: null,
           trangThai: "",
           ngayMua: "",
           baoHanh: "",
@@ -277,17 +278,10 @@ export default function EquipmentModal({
                   <FormItem>
                     <FormLabel>Đơn giá</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
+                      <NumericFormatInput
                         placeholder="Nhập đơn giá"
-                        value={field.value ?? ""}
-                        onChange={(e) =>
-                          field.onChange(
-                            e.target.value === ""
-                              ? undefined
-                              : Number(e.target.value)
-                          )
-                        }
+                        value={field.value}
+                        onChange={field.onChange}
                       />
                     </FormControl>
                     <FormMessage />
