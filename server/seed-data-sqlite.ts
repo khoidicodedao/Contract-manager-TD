@@ -251,6 +251,6 @@ export async function seedSQLiteDatabase() {
 
   console.log(`SQLite database seeded successfully!`);
   console.log(
-    `Created ${contractIds.length} contracts, ${progressSteps.length} progress steps, ${payments.length} payments, ${equipment.length} equipment items, ${documents.length} documents, and reception records`
+    `Created ${contractIds.length} contracts, ${progressSteps.length} progress steps, ${payments.length} payments, ${equipment.length} equipment items, and reception records`
   );
 }

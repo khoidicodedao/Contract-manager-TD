@@ -333,7 +333,7 @@ export function Sidebar() {
       {/* Logo */}
       <div
         className="p-6 border-b border-slate-200"
-        style={{ paddingTop: "40px" }}
+        style={{paddingBottom:"20px"}}
       >
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center overflow-hidden border border-primary/20">
