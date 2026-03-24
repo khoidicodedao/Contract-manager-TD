@@ -7,28 +7,43 @@ Tài liệu này cung cấp hướng dẫn chi tiết các bước để triển
 ## PHẦN 1: HƯỚNG DẪN CHO WINDOWS
 
 ### 1. Yêu cầu hệ thống
+
 - **Node.js**: Phiên bản 20.x trở lên.
 - **Git**: (Tùy chọn) Để tải mã nguồn.
 
 ### 2. Các bước cài đặt
+
 1. **Cài đặt thư viện**: Mở CMD/PowerShell tại thư mục dự án và chạy:
+
    ```bash
    npm install
    ```
+
 2. **Biên dịch (Build)**:
+
    ```bash
    npm run build
    ```
+
 3. **Khởi tạo dữ liệu**:
+
    ```bash
    npm run db:push
    ```
 
 ### 3. Chạy ứng dụng Production (với PM2)
-Để ứng dụng tự khởi động lại khi gặp lỗi hoặc khi reboot máy:
-- Cài đặt PM2: `npm install -g pm2`
-- Chạy ứng dụng: `pm2 start dist/index.js --name "contract-manager"`
-- Lưu trạng thái: `pm2 save`
+Để ứng dụng tự khởi động lại khi reboot máy hoặc gặp lỗi:
+- **Cài đặt PM2 toàn cục**: `npm install -g pm2`
+- **Cài đặt công cụ khởi động trên Windows**:
+  ```bash
+  npm install -g pm2-windows-startup
+  pm2-startup install
+  ```
+- **Chạy ứng dụng**: `pm2 start dist/index.cjs --name "contract-manager"`
+- **Lưu trạng thái** (Quan trọng để PM2 nhớ ứng dụng khi reboot):
+  ```bash
+  pm2 save
+  ```
 
 ---
 
@@ -53,19 +68,24 @@ sudo apt install -y nodejs
 3. **Khởi tạo dữ liệu**: `npm run db:push`
 
 ### 3. Quản lý quy trình với PM2
+
 ```bash
 sudo npm install -g pm2
 pm2 start dist/index.js --name "contract-manager"
 pm2 save
 pm2 startup
 ```
+
 *(Lưu ý: copy câu lệnh do `pm2 startup` trả về và chạy nó để kích hoạt tự động khởi động cùng hệ thống).*
 
 ### 4. Cấu hình Nginx (Reverse Proxy)
+
 Để truy cập qua cổng 80 (HTTP) thay vì 5000:
+
 - Cài đặt: `sudo apt install nginx -y`
 - Tạo file cấu hình: `sudo nano /etc/nginx/sites-available/contract-manager`
 - Nội dung cấu hình:
+
   ```nginx
   server {
       listen 80;
@@ -78,7 +98,9 @@ pm2 startup
       }
   }
   ```
+
 - Kích hoạt và restart:
+
   ```bash
   sudo ln -s /etc/nginx/sites-available/contract-manager /etc/nginx/sites-enabled/
   sudo systemctl restart nginx
