@@ -850,6 +850,52 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
 
+  app.post("/api/loai-tien", async (req, res) => {
+    try {
+      const validatedData = schema.insertLoaiTienSchema.parse(req.body);
+      const [newItem] = await db
+        .insert(schema.loaiTien)
+        .values(validatedData)
+        .returning();
+      res.status(201).json(newItem);
+    } catch (error) {
+      console.error("Error creating loai tien:", error);
+      res.status(500).json({ error: "Lỗi khi tạo loại tiền" });
+    }
+  });
+
+  app.put("/api/loai-tien/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = schema.insertLoaiTienSchema.parse(req.body);
+      const [updated] = await db
+        .update(schema.loaiTien)
+        .set(validatedData)
+        .where(eq(schema.loaiTien.id, Number(id)))
+        .returning();
+      if (!updated) return res.status(404).json({ error: "Không tìm thấy" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating loai tien:", error);
+      res.status(500).json({ error: "Lỗi khi cập nhật" });
+    }
+  });
+
+  app.delete("/api/loai-tien/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [deleted] = await db
+        .delete(schema.loaiTien)
+        .where(eq(schema.loaiTien.id, Number(id)))
+        .returning();
+      if (!deleted) return res.status(404).json({ error: "Không tìm thấy" });
+      res.json(deleted);
+    } catch (error) {
+      console.error("Error deleting loai tien:", error);
+      res.status(500).json({ error: "Lỗi khi xóa" });
+    }
+  });
+
   // Trạng thái hợp đồng routes
   app.get("/api/trang-thai-hop-dong", async (req, res) => {
     try {
@@ -2858,7 +2904,22 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get("/api/audit-logs", async (req, res) => {
     if (!req.isAuthenticated() || (req.user as any).role !== "admin") return res.status(403).json({ error: "Không có quyền" });
     try {
-      const items = await db.select().from(schema.auditLogs).orderBy(sql`${schema.auditLogs.timestamp} DESC`).limit(200);
+      const items = await db
+        .select({
+          id: schema.auditLogs.id,
+          userId: schema.auditLogs.userId,
+          action: schema.auditLogs.action,
+          targetType: schema.auditLogs.targetType,
+          targetId: schema.auditLogs.targetId,
+          timestamp: schema.auditLogs.timestamp,
+          details: schema.auditLogs.details,
+          hopDongId: schema.auditLogs.hopDongId,
+          tenHopDong: schema.hopDong.ten,
+        })
+        .from(schema.auditLogs)
+        .leftJoin(schema.hopDong, eq(schema.auditLogs.hopDongId, schema.hopDong.id))
+        .orderBy(sql`${schema.auditLogs.timestamp} DESC`)
+        .limit(200);
       res.json(items);
     } catch (error) {
       console.error("Error fetching audit logs:", error);

@@ -30,6 +30,7 @@ import LetterOfCredit from "@/pages/letter-of-credit";
 import ActualCosts from "@/pages/actual-costs";
 import PlannedCosts from "@/pages/planned-costs";
 import CostTypes from "@/pages/cost-types";
+import CurrencyTypes from "@/pages/currency-types";
 import Departments from "@/pages/departments";
 import UsersPage from "@/pages/users";
 import AuditLogs from "@/pages/audit-logs";
@@ -254,6 +255,14 @@ function Router() {
         component={() => (
           <ProtectedRoute>
             <AuditLogs />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/loai-tien"
+        component={() => (
+          <ProtectedRoute>
+            <CurrencyTypes />
           </ProtectedRoute>
         )}
       />

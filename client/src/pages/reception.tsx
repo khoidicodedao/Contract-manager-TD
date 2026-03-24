@@ -422,6 +422,7 @@ export default function Reception() {
                       <SelectItem value="Tạm nhập tái xuất">Tạm nhập </SelectItem>
                       <SelectItem value="Tạm xuất tái nhập">Tạm xuất</SelectItem>
                       <SelectItem value="Gia công">Tái nhập</SelectItem>
+                      <SelectItem value="Tái xuất">Tái xuất</SelectItem>
 
                     </SelectContent>
                   </Select>

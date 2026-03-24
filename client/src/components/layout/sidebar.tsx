@@ -66,8 +66,11 @@ export function Sidebar() {
   const { data: tiepNhan = [] } = useQuery<HopDong[]>({
     queryKey: ["/api/tiep-nhan"],
   });
-  const { data: loaiNganSach = [] } = useQuery<HopDong[]>({
+  const { data: loaiNganSach = [] } = useQuery<any[]>({
     queryKey: ["/api/loai-ngan-sach"],
+  });
+  const { data: loaiTien = [] } = useQuery<any[]>({
+    queryKey: ["/api/loai-tien"],
   });
   const { data: invoices = [] } = useQuery<any[]>({
     queryKey: ["/api/hoa-don"],
@@ -199,6 +202,14 @@ export function Sidebar() {
           current: false,
           badge: loaiNganSach.length > 0 ? loaiNganSach.length : "",
           color: "text-teal-600",
+        },
+        {
+          name: "Loại tiền",
+          href: "/loai-tien",
+          icon: DollarSign,
+          current: false,
+          badge: loaiTien.length > 0 ? loaiTien.length : "",
+          color: "text-amber-500",
         },
         {
           name: "Bảo lãnh",

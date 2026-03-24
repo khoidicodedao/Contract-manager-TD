@@ -49,7 +49,8 @@ export default function AuditLogs() {
       log.action?.toLowerCase().includes(term) ||
       log.targetType?.toLowerCase().includes(term) ||
       username.toLowerCase().includes(term) ||
-      (log.hopDongId && String(log.hopDongId).includes(term))
+      (log.hopDongId && String(log.hopDongId).includes(term)) ||
+      (log.tenHopDong && log.tenHopDong.toLowerCase().includes(term))
     );
   });
 
@@ -101,7 +102,7 @@ export default function AuditLogs() {
                       <TableHead>Người dùng</TableHead>
                       <TableHead>Hành động</TableHead>
                       <TableHead>Đôí tượng</TableHead>
-                      <TableHead>Mã HĐ</TableHead>
+                      <TableHead>Hợp đồng</TableHead>
                       <TableHead>Chi tiết chi tiết</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -132,9 +133,9 @@ export default function AuditLogs() {
                           </TableCell>
                           <TableCell>
                             {log.hopDongId ? (
-                              <span className="inline-flex items-center text-blue-600">
-                                <FileText className="w-3 h-3 mr-1" />
-                                {log.hopDongId}
+                              <span className="inline-flex items-center text-blue-600 font-medium" title={`ID: ${log.hopDongId}`}>
+                                <FileText className="w-3.5 h-3.5 mr-1" />
+                                {log.tenHopDong || `ID: ${log.hopDongId}`}
                               </span>
                             ) : "—"}
                           </TableCell>
