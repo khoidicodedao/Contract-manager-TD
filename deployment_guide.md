@@ -71,12 +71,31 @@ sudo apt install -y nodejs
 
 ```bash
 sudo npm install -g pm2
-pm2 start dist/index.js --name "contract-manager"
+pm2 start dist/index.cjs --name "contract-manager"
 pm2 save
 pm2 startup
 ```
 
 *(Lưu ý: copy câu lệnh do `pm2 startup` trả về và chạy nó để kích hoạt tự động khởi động cùng hệ thống).*
+
+Ví dụ quy trình đầy đủ trên Ubuntu:
+
+```bash
+pm2 start dist/index.cjs --name "contract-manager"
+pm2 save
+pm2 startup systemd -u $USER --hp $HOME
+```
+
+Sau khi chạy `pm2 startup systemd -u $USER --hp $HOME`, PM2 sẽ in ra một câu lệnh `sudo ...`. Hãy copy và chạy đúng câu lệnh đó một lần để đăng ký service khởi động cùng máy chủ.
+
+Các lệnh kiểm tra hữu ích:
+
+```bash
+pm2 list
+pm2 status
+pm2 logs contract-manager
+systemctl status pm2-$USER
+```
 
 ### 4. Cấu hình Nginx (Reverse Proxy)
 
