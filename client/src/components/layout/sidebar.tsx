@@ -21,6 +21,7 @@ import {
   Stamp,
   Tag,
   LogOut,
+  Database,
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -331,6 +332,13 @@ export function Sidebar() {
                 icon: FileText,
                 current: false,
                 color: "text-slate-600",
+              },
+              {
+                name: "Quản lý bảng DB",
+                href: "/db-admin",
+                icon: Database,
+                current: false,
+                color: "text-emerald-700",
               },
             ]
           : []),

@@ -34,6 +34,7 @@ import CurrencyTypes from "@/pages/currency-types";
 import Departments from "@/pages/departments";
 import UsersPage from "@/pages/users";
 import AuditLogs from "@/pages/audit-logs";
+import DbAdminPage from "@/pages/db-admin";
 
 function Router() {
   console.log("Current pathname:", window.location.hash); // 👈 debug ở đây
@@ -255,6 +256,14 @@ function Router() {
         component={() => (
           <ProtectedRoute>
             <AuditLogs />
+          </ProtectedRoute>
+        )}
+      />
+      <Route
+        path="/db-admin"
+        component={() => (
+          <ProtectedRoute>
+            <DbAdminPage />
           </ProtectedRoute>
         )}
       />

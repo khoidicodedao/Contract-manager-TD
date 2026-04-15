@@ -1,7 +1,7 @@
 import { Express } from "express";
 import { Server } from "http";
 import { eq, ilike, sql, or, and } from "drizzle-orm";
-import { db } from "./database.js";
+import { db, sqlite } from "./database.js";
 import * as schema from "../shared/schema.js";
 
 import {
@@ -59,6 +59,82 @@ export async function registerRoutes(app: Express): Promise<void> {
         console.error("Lỗi ghi log:", error);
       }
     }
+  }
+
+  function dedupeBy<T>(items: T[], getKey: (item: T) => string): T[] {
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      const key = getKey(item);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function ensureAdmin(req: any, res: any): boolean {
+    if (!req.isAuthenticated()) {
+      res.status(401).json({ error: "Chưa đăng nhập" });
+      return false;
+    }
+    if ((req.user as any).role !== "admin") {
+      res.status(403).json({ error: "Không có quyền" });
+      return false;
+    }
+    return true;
+  }
+
+  function quoteIdentifier(identifier: string) {
+    return `"${identifier.replace(/"/g, "\"\"")}"`;
+  }
+
+  function quoteSqlString(value: string) {
+    return `'${value.replace(/'/g, "''")}'`;
+  }
+
+  function getDbAdminTables() {
+    const tables = sqlite
+      .prepare(`
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name NOT LIKE 'sqlite_%'
+          AND name NOT LIKE 'session%'
+        ORDER BY name
+      `)
+      .all() as Array<{ name: string }>;
+
+    return tables.flatMap(({ name }) => {
+      try {
+        const columns = sqlite.pragma(`table_info(${quoteIdentifier(name)})`) as Array<{
+          name: string;
+          type: string;
+          notnull: number;
+          dflt_value: string | null;
+          pk: number;
+        }>;
+
+        const primaryKey = columns.find((column) => column.pk > 0)?.name ?? null;
+        const rowCountResult = sqlite
+          .prepare(`SELECT COUNT(*) as count FROM ${quoteIdentifier(name)}`)
+          .get() as { count: number };
+
+        return [{
+          name,
+          primaryKey,
+          rowCount: rowCountResult.count,
+          columns: columns.map((column) => ({
+            name: column.name,
+            type: column.type,
+            notNull: Boolean(column.notnull),
+            defaultValue: column.dflt_value,
+            isPrimaryKey: column.pk > 0,
+          })),
+        }];
+      } catch (error) {
+        console.error(`Error reading table metadata for ${name}:`, error);
+        return [];
+      }
+    });
   }
 
   // ─── Thông báo: hợp đồng & thanh toán sắp / quá hạn ─────────────────────
@@ -156,7 +232,7 @@ export async function registerRoutes(app: Express): Promise<void> {
 
 
       notifications.sort((a, b) => a.days - b.days);
-      res.json(notifications);
+      res.json(dedupeBy(notifications, (item) => item.id));
     } catch (error) {
       console.error("Error fetching notifications:", error);
       res.status(500).json({ error: "Lỗi server" });
@@ -260,6 +336,11 @@ export async function registerRoutes(app: Express): Promise<void> {
           totalValue: total,
         };
       });
+      const totalUyThacVND = contracts.reduce((sum, c) => {
+        const phiUyThac = parseFloat(c.phiUyThac?.toString() || "0");
+        const tyGia = parseFloat(c.tyGia?.toString() || "1");
+        return sum + phiUyThac * tyGia;
+      }, 0);
       const totalPaidValue = payments
         .filter(p => p.daThanhToan)
         .reduce((sum, p) => {
@@ -286,6 +367,7 @@ export async function registerRoutes(app: Express): Promise<void> {
           return sum + (c.giaTriHopDong || 0) * tyGia;
         }, 0),
         totalPaidValue,
+        totalUyThacVND,
         totalUyThacByCurrency,
         totalValueByCurrency,
         totalPayments: payments.length,
@@ -543,7 +625,11 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get("/api/loai-hop-dong", async (req, res) => {
     try {
       const items = await db.select().from(schema.loaiHopDong);
-      res.json(items);
+      const dedupedItems = dedupeBy(
+        items.sort((a, b) => a.id - b.id),
+        (item) => item.ten.trim().toLowerCase()
+      );
+      res.json(dedupedItems);
     } catch (error) {
       console.error("Error fetching loai hop dong:", error);
       res.status(500).json({ error: "Lỗi server" });
@@ -939,7 +1025,16 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
 
       const items = await query;
-      res.json(items);
+      const dedupedItems = dedupeBy(
+        items.sort((a, b) => a.id - b.id),
+        (item) => {
+          const soHdNgoai = item.soHdNgoai?.trim().toLowerCase();
+          const soHdNoi = item.soHdNoi?.trim().toLowerCase();
+          const ten = item.ten?.trim().toLowerCase();
+          return [soHdNgoai, soHdNoi, ten].filter(Boolean).join("|") || `id:${item.id}`;
+        }
+      );
+      res.json(dedupedItems);
     } catch (error) {
       console.error("Error fetching hop dong:", error);
       res.status(500).json({ error: "Lỗi khi lấy danh sách hợp đồng" });
@@ -2755,6 +2850,179 @@ export async function registerRoutes(app: Express): Promise<void> {
   });
 
   // --- QUẢN LÝ PHÒNG BAN ---
+  app.get("/api/db-admin/tables", async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      res.json(getDbAdminTables());
+    } catch (error) {
+      console.error("Error fetching db admin tables:", error);
+      res.status(500).json({ error: "Không thể lấy danh sách bảng" });
+    }
+  });
+
+  app.get("/api/db-admin/tables/:table/rows", async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      const tables = getDbAdminTables();
+      const table = tables.find((item) => item.name === req.params.table);
+      if (!table) return res.status(404).json({ error: "Bảng không tồn tại" });
+
+      const limit = Math.min(Math.max(Number(req.query.limit || 200), 1), 500);
+      const orderBy = table.primaryKey
+        ? `ORDER BY ${quoteIdentifier(table.primaryKey)} DESC`
+        : "";
+
+      const rows = sqlite
+        .prepare(
+          `SELECT * FROM ${quoteIdentifier(table.name)} ${orderBy} LIMIT ${limit}`
+        )
+        .all();
+
+      res.json({ table, rows });
+    } catch (error) {
+      console.error("Error fetching db admin rows:", error);
+      res.status(500).json({ error: "Không thể lấy dữ liệu bảng" });
+    }
+  });
+
+  app.post("/api/db-admin/tables/:table/rows", async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      const tables = getDbAdminTables();
+      const table = tables.find((item) => item.name === req.params.table);
+      if (!table) return res.status(404).json({ error: "Bảng không tồn tại" });
+
+      const payload = (req.body ?? {}) as Record<string, unknown>;
+      const allowedColumns = table.columns.filter(
+        (column) => !column.isPrimaryKey || column.type.toUpperCase() !== "INTEGER"
+      );
+      const entries = allowedColumns
+        .filter((column) => Object.prototype.hasOwnProperty.call(payload, column.name))
+        .map((column) => [column.name, payload[column.name]] as const);
+
+      if (entries.length === 0) {
+        return res.status(400).json({ error: "Không có dữ liệu để thêm" });
+      }
+
+      const columnsSql = entries.map(([name]) => quoteIdentifier(name)).join(", ");
+      const placeholders = entries.map(() => "?").join(", ");
+      const values = entries.map(([, value]) => value);
+
+      const result = sqlite
+        .prepare(
+          `INSERT INTO ${quoteIdentifier(table.name)} (${columnsSql}) VALUES (${placeholders})`
+        )
+        .run(...values);
+
+      if (!table.primaryKey) {
+        return res.status(201).json({ success: true, lastInsertRowid: result.lastInsertRowid });
+      }
+
+      const lookupValue =
+        table.primaryKey === "id" && result.lastInsertRowid
+          ? result.lastInsertRowid
+          : payload[table.primaryKey];
+
+      const createdRow = sqlite
+        .prepare(
+          `SELECT * FROM ${quoteIdentifier(table.name)} WHERE ${quoteIdentifier(table.primaryKey)} = ?`
+        )
+        .get(lookupValue);
+
+      res.status(201).json(createdRow);
+    } catch (error) {
+      console.error("Error creating db admin row:", error);
+      res.status(500).json({ error: "Không thể thêm dòng dữ liệu" });
+    }
+  });
+
+  app.put("/api/db-admin/tables/:table/rows/:pk", async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      const tables = getDbAdminTables();
+      const table = tables.find((item) => item.name === req.params.table);
+      if (!table || !table.primaryKey) {
+        return res.status(404).json({ error: "Bảng không hợp lệ" });
+      }
+
+      const payload = (req.body ?? {}) as Record<string, unknown>;
+      const entries = table.columns
+        .filter((column) => !column.isPrimaryKey)
+        .filter((column) => Object.prototype.hasOwnProperty.call(payload, column.name))
+        .map((column) => [column.name, payload[column.name]] as const);
+
+      if (entries.length === 0) {
+        return res.status(400).json({ error: "Không có dữ liệu để cập nhật" });
+      }
+
+      const setSql = entries
+        .map(([name]) => `${quoteIdentifier(name)} = ?`)
+        .join(", ");
+      const values = entries.map(([, value]) => value);
+      const pkColumn = table.columns.find((column) => column.name === table.primaryKey);
+      const pkValue =
+        pkColumn?.type.toUpperCase() === "INTEGER" ? Number(req.params.pk) : req.params.pk;
+
+      const result = sqlite
+        .prepare(
+          `UPDATE ${quoteIdentifier(table.name)}
+           SET ${setSql}
+           WHERE ${quoteIdentifier(table.primaryKey)} = ?`
+        )
+        .run(...values, pkValue);
+
+      if (result.changes === 0) {
+        return res.status(404).json({ error: "Không tìm thấy dòng dữ liệu" });
+      }
+
+      const updatedRow = sqlite
+        .prepare(
+          `SELECT * FROM ${quoteIdentifier(table.name)} WHERE ${quoteIdentifier(table.primaryKey)} = ?`
+        )
+        .get(pkValue);
+
+      res.json(updatedRow);
+    } catch (error) {
+      console.error("Error updating db admin row:", error);
+      res.status(500).json({ error: "Không thể cập nhật dòng dữ liệu" });
+    }
+  });
+
+  app.delete("/api/db-admin/tables/:table/rows/:pk", async (req, res) => {
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      const tables = getDbAdminTables();
+      const table = tables.find((item) => item.name === req.params.table);
+      if (!table || !table.primaryKey) {
+        return res.status(404).json({ error: "Bảng không hợp lệ" });
+      }
+
+      const pkColumn = table.columns.find((column) => column.name === table.primaryKey);
+      const pkValue =
+        pkColumn?.type.toUpperCase() === "INTEGER" ? Number(req.params.pk) : req.params.pk;
+
+      const result = sqlite
+        .prepare(
+          `DELETE FROM ${quoteIdentifier(table.name)} WHERE ${quoteIdentifier(table.primaryKey)} = ?`
+        )
+        .run(pkValue);
+
+      if (result.changes === 0) {
+        return res.status(404).json({ error: "Không tìm thấy dòng dữ liệu" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting db admin row:", error);
+      res.status(500).json({ error: "Không thể xóa dòng dữ liệu" });
+    }
+  });
+
   app.get("/api/phong-ban", async (req, res) => {
     try {
       const items = await db.select().from(schema.phongBan);

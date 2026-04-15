@@ -455,9 +455,7 @@ export default function Dashboard() {
                             Tổng phí ủy thác (VND)
                           </h4>
                           <p className="text-xl font-black text-emerald-900">
-                            {stats?.totalUyThacByCurrency
-                              ?.reduce((sum: number, item: any) => sum + item.totalValue, 0)
-                              .toLocaleString("vi-VN")}
+                            {(stats?.totalUyThacVND || 0).toLocaleString("vi-VN")}
                           </p>
                         </div>
                         <div className="text-right">

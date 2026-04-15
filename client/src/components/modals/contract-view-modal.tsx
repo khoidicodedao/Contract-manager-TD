@@ -605,8 +605,21 @@ export default function ContractViewModal({
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("vi-VN").format(amount);
+  const formatCurrency = (
+    amount?: number | null,
+    currencyId?: string | number | null
+  ) => {
+    if (amount === null || amount === undefined) return "-";
+
+    const currencyName = getCurrencyName(currencyId);
+    if (currencyName === "VND") {
+      return new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+      }).format(amount);
+    }
+
+    return `${new Intl.NumberFormat("vi-VN").format(amount)} ${currencyName}`;
   };
 
   const getCurrencyName = (currencyId?: string | number | null) => {
@@ -701,8 +714,7 @@ export default function ContractViewModal({
                     Giá trị hợp đồng
                   </label>
                   <p className="mt-1 text-sm text-gray-900">
-                    {contract.giaTriHopDong || "-"}{" "}
-                    {/* {getCurrencyName(contract.loaiTienId)} */}
+                    {formatCurrency(contract.giaTriHopDong, contract.loaiTienId)}
                   </p>
                 </div>
                 <div>
