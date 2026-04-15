@@ -30,7 +30,21 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Edit, Trash2, Search, Plus } from "lucide-react";
+import { Edit, Trash2, Search, Plus, Check, ChevronsUpDown } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import {
   NhaCungCap,
   insertNhaCungCapSchema,
@@ -479,14 +493,15 @@ export default function Suppliers() {
                         <TableCell>{supplier.ten}</TableCell>
                         <TableCell>{supplier.diaChi}</TableCell>
                         <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <img
-                              src={getCountryFlag(supplier.maQuocGia || "")}
-                              alt={supplier.maQuocGia || "unknown"}
-                              width={24}
-                              height={18}
-                            />
-                            {supplier.maQuocGia}
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-6 overflow-hidden rounded border border-slate-100 flex-shrink-0">
+                                <img
+                                  src={getCountryFlag(supplier.maQuocGia || "")}
+                                  alt={supplier.maQuocGia || "unknown"}
+                                  className="w-full h-full object-cover"
+                                />
+                            </div>
+                            <span className="font-medium text-slate-700">{supplier.maQuocGia}</span>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -557,30 +572,76 @@ export default function Suppliers() {
                 control={form.control}
                 name="diaChi"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Quốc gia</FormLabel>
-                    <FormControl>
-                      <select
-                        className="w-full p-2 border rounded text-sm"
-                        value={field.value}
-                        onChange={(e) => {
-                          field.onChange(e.target.value);
-                          const found = countries.find(
-                            (c) => c.name === e.target.value
-                          );
-                          if (found) {
-                            form.setValue("maQuocGia", found.code);
-                          }
-                        }}
-                      >
-                        <option value="">-- Chọn quốc gia --</option>
-                        {countries.map((c) => (
-                          <option key={c.code} value={c.name}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                    </FormControl>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className={cn(
+                              "w-full justify-between font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              {field.value && (
+                                <img
+                                  src={getCountryFlag(form.getValues("maQuocGia") || "")}
+                                  alt="flag"
+                                  className="w-5 h-3.5 object-cover rounded-sm"
+                                />
+                              )}
+                              {field.value
+                                ? countries.find(
+                                    (country) => country.name === field.value
+                                  )?.name
+                                : "Chọn quốc gia..."}
+                            </div>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Tìm kiếm quốc gia..." />
+                          <CommandList>
+                            <CommandEmpty>Không tìm thấy quốc gia.</CommandEmpty>
+                            <CommandGroup>
+                              {countries.map((country) => (
+                                <CommandItem
+                                  value={country.name}
+                                  key={country.code}
+                                  onSelect={() => {
+                                    form.setValue("diaChi", country.name);
+                                    form.setValue("maQuocGia", country.code);
+                                  }}
+                                  className="cursor-pointer"
+                                >
+                                  <div className="flex items-center gap-2 w-full">
+                                    <img
+                                      src={getCountryFlag(country.code)}
+                                      alt={country.name}
+                                      className="w-5 h-3.5 object-cover rounded-sm"
+                                    />
+                                    <span className="flex-1">{country.name}</span>
+                                    <Check
+                                      className={cn(
+                                        "ml-auto h-4 w-4",
+                                        country.name === field.value
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      )}
+                                    />
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}
