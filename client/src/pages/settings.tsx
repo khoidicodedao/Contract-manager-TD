@@ -93,6 +93,7 @@ export default function Settings() {
             const res = await fetch("/api/restore", {
                 method: "POST",
                 body: formData,
+                cache: "no-store",
             });
 
             if (!res.ok) {
@@ -107,8 +108,9 @@ export default function Settings() {
             });
 
             // Reload page after successful restore to refresh data
+            queryClient.clear();
             setTimeout(() => {
-                window.location.reload();
+                window.location.href = `/?restored=${Date.now()}`;
             }, 2000);
 
         } catch (error: any) {

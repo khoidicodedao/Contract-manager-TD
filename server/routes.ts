@@ -43,6 +43,14 @@ const upload = multer({
   },
 });
 export async function registerRoutes(app: Express): Promise<void> {
+  app.use("/api", (_req, res, next) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    res.setHeader("Surrogate-Control", "no-store");
+    next();
+  });
+
   // Helper ghi log hệ thống
   async function logAction(req: any, action: string, targetType: string, targetId: number | null, details: string, hopDongId?: number | null) {
     if (req.user) {

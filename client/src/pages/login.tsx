@@ -12,7 +12,11 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 
   const loginMutation = useMutation({
-    mutationFn: async () => await apiRequest("POST", "/api/login", { username, password }),
+    mutationFn: async () =>
+      await apiRequest("POST", "/api/login", {
+        username: username.trim(),
+        password,
+      }),
     onSuccess: () => {
       login("established-session"); // Lưu flag để validate cho ProtectedRoute
       navigate("/");
@@ -23,7 +27,7 @@ export default function LoginPage() {
   });
 
   const handleLogin = () => {
-    if (!username || !password) {
+    if (!username.trim() || !password) {
       setError("Vui lòng nhập đầy đủ thông tin");
       return;
     }

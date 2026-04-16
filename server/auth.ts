@@ -21,9 +21,20 @@ export async function hashPassword(password: string) {
 
 async function comparePasswords(supplied: string, stored: string) {
   const [hashed, salt] = stored.split(".");
+  if (!hashed || !salt) return false;
   const hashedBuf = Buffer.from(hashed, "hex");
   const buf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+  if (hashedBuf.length !== buf.length) return false;
   return timingSafeEqual(hashedBuf, buf);
+}
+
+function normalizeUsername(username: unknown) {
+  return typeof username === "string" ? username.trim() : "";
+}
+
+function publicUser(user: User) {
+  const { password, ...safeUser } = user;
+  return safeUser;
 }
 
 export function setupAuth(app: Express) {
@@ -51,10 +62,11 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
+        const normalizedUsername = normalizeUsername(username);
         const [user] = await db
           .select()
           .from(users)
-          .where(eq(users.username, username))
+          .where(eq(users.username, normalizedUsername))
           .limit(1);
 
         if (!user || !(await comparePasswords(password, user.password))) {
@@ -88,7 +100,8 @@ export function setupAuth(app: Express) {
   // Auth routes
   app.post("/api/register", async (req, res, next) => {
     try {
-      const { username, password, role, phongBanId } = req.body;
+      const { password, role, phongBanId } = req.body;
+      const username = normalizeUsername(req.body.username);
       const [existingUser] = await db
         .select()
         .from(users)
@@ -113,7 +126,7 @@ export function setupAuth(app: Express) {
       req.login(user, async (err) => {
         if (err) return next(err);
         await logAction(req, "register", "tài_khoản", user.id, `Đăng ký tài khoản mới: ${user.username}`);
-        res.status(201).json(user);
+        res.status(201).json(publicUser(user));
       });
     } catch (err) {
       next(err);
@@ -121,13 +134,14 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
+    req.body.username = normalizeUsername(req.body.username);
     passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) return next(err);
       if (!user) return res.status(401).send("Invalid username or password");
       req.login(user, async (err) => {
         if (err) return next(err);
         await logAction(req, "login", "hệ_thống", user.id, `Người dùng ${user.username} đăng nhập`);
-        res.status(200).json(user);
+        res.status(200).json(publicUser(user));
       });
     })(req, res, next);
   });
@@ -144,6 +158,6 @@ export function setupAuth(app: Express) {
 
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    res.json(req.user);
+    res.json(publicUser(req.user as User));
   });
 }
