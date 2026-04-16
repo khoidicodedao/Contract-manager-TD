@@ -106,7 +106,7 @@ export async function startServer() {
   serveStatic(app);
 
   // Chạy server
-  const port = 5000;
+  const port = Number(process.env.PORT || 5000);
   await new Promise<void>((resolve) => {
     server.listen(port, "0.0.0.0", async () => {
       log(`✅ Server running at http://localhost:${port}`);

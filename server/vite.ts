@@ -1,14 +1,7 @@
 import express, { type Express } from "express";
 import fs from "fs";
-import path, { dirname } from "path";
-import { fileURLToPath } from "url";
+import path from "path";
 
-// ✅ Thay thế __dirname
-// ✅ Thay thế __dirname
-const __filename = typeof import.meta.url !== 'undefined' ? fileURLToPath(import.meta.url) : __filename;
-const __dirname = typeof import.meta.url !== 'undefined' ? dirname(__filename) : __dirname;
-
-// ✅ Giữ nguyên hàm log
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -21,21 +14,21 @@ export function log(message: string, source = "express") {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(__dirname, "public");
+  const distPath = path.resolve(process.cwd(), "dist", "public");
 
-  log(`📦 Looking for static files in ${distPath}`);
+  log(`Looking for static files in ${distPath}`);
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
-      `❌ Could not find the build directory: ${distPath}, did you run "vite build"?`
+      `Could not find the build directory: ${distPath}. Run "npm run build" from the project root before "npm start".`
     );
   }
 
   app.use(express.static(distPath));
-  log("✅ Static files are being served.");
+  log("Static files are being served.");
 
   app.use("*", (req, res) => {
-    log(`📄 [Static] Serving index.html for ${req.originalUrl}`);
+    log(`[Static] Serving index.html for ${req.originalUrl}`);
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
