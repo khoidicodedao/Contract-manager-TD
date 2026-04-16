@@ -2,12 +2,41 @@ import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import * as schema from "@shared/schema";
+import { scrypt, randomBytes } from "crypto";
+import { promisify } from "util";
 
 export const sqlite = new Database("./database.sqlite");
 sqlite.pragma("journal_mode = WAL");
 sqlite.pragma("busy_timeout = 5000");
 export const db = drizzle(sqlite, { schema });
 const DB_INITIALIZED_KEY = "DB_INITIALIZED";
+const scryptAsync = promisify(scrypt);
+
+async function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${buf.toString("hex")}.${salt}`;
+}
+
+async function ensureDefaultAdmin() {
+  const username = "giadinh_admin";
+  const password = "adminpassword123";
+  const existingAdmin = sqlite
+    .prepare("SELECT id FROM users WHERE username = ? LIMIT 1")
+    .get(username) as { id: number } | undefined;
+
+  if (existingAdmin) {
+    return;
+  }
+
+  sqlite
+    .prepare(
+      "INSERT INTO users (username, password, role, phong_ban_id) VALUES (?, ?, ?, ?)"
+    )
+    .run(username, await hashPassword(password), "admin", null);
+
+  console.log(`Created default admin account: ${username}`);
+}
 
 function getSystemSetting(key: string): { key: string; value: string | null } | undefined {
   return sqlite
@@ -546,10 +575,10 @@ export async function initializeDatabase() {
 
   // Seed default system settings
   const defaultSettings = [
-    { key: "SYSTEM_NAME", value: "Quáº£n lÃ½ dá»± Ã¡n" },
+    { key: "SYSTEM_NAME", value: "Quản lý dự án" },
     { key: "DEVELOPER_NAME", value: "Tran Ngoc Tuan" },
-    { key: "USER_NAME", value: "NgÃ´ VÄƒn Khang" },
-    { key: "USER_ROLE", value: "Quáº£n lÃ½ dá»± Ã¡n / Vaxuco" },
+    { key: "USER_NAME", value: "Ngô Văn Khang" },
+    { key: "USER_ROLE", value: "Quản lý dự án / Vaxuco" },
     { key: "USER_PHOTO", value: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&h=100" },
     { key: "DEVELOPER_PHOTO", value: "/placeholder-logo.png" },
   ];
@@ -564,6 +593,7 @@ export async function initializeDatabase() {
 
   // Migrate schema for existing tables
   addMissingColumns();
+  await ensureDefaultAdmin();
 
   let transactionOpen = false;
 
@@ -596,76 +626,76 @@ export async function initializeDatabase() {
     await db
       .insert(schema.loaiHopDong)
       .values([
-        { ten: "Nháº­p kháº©u" },
-        { ten: "Xuáº¥t kháº©u" },
-        { ten: "Táº¡m xuáº¥t â€“ TÃ¡i nháº­p" },
-        { ten: "Táº¡m nháº­p â€“ TÃ¡i xuáº¥t" },
+        { ten: "Nhập khẩu" },
+        { ten: "Xuất khẩu" },
+        { ten: "Tạm xuất – Tái nhập" },
+        { ten: "Tạm nhập – Tái xuất" },
       ]);
 
     await db
       .insert(schema.loaiNganSach)
       .values([
-        { ten: "NgÃ¢n sÃ¡ch thÆ°á»ng xuyÃªn" },
-        { ten: "NgÃ¢n sÃ¡ch dÃ´i dÆ°" },
-        { ten: "NgÃ¢n sÃ¡ch 432" },
-        { ten: "NgÃ¢n sÃ¡ch Ä‘áº·c biá»‡t" },
-        { ten: "NgÃ¢n sÃ¡ch Ä‘áº·c thÃ¹" },
+        { ten: "Ngân sách thường xuyên" },
+        { ten: "Ngân sách dôi dư" },
+        { ten: "Ngân sách 432" },
+        { ten: "Ngân sách đặc biệt" },
+        { ten: "Ngân sách đặc thù" },
       ]);
 
     await db
       .insert(schema.loaiTien)
-      .values([{ ten: "USD" }, { ten: "EUR" }, { ten: "VNÄ" }]);
+      .values([{ ten: "USD" }, { ten: "EUR" }, { ten: "VNĐ" }]);
 
     await db
       .insert(schema.loaiHinhThucThanhToan)
       .values([
-        { ten: "Äiá»‡n chuyá»ƒn tiá»n L/C" },
-        { ten: "Tiá»n máº·t" },
-        { ten: "Chuyá»ƒn khoáº£n" },
+        { ten: "Điện chuyển tiền L/C" },
+        { ten: "Tiền mặt" },
+        { ten: "Chuyển khoản" },
       ]);
 
     await db
       .insert(schema.loaiThanhToan)
       .values([
-        { ten: "GiÃ¡ trá»‹ hÃ ng hoÃ¡" },
-        { ten: "Thuáº¿ nhÃ  tháº§u" },
-        { ten: "Thuáº¿ VAT" },
-        { ten: "PhÃ­ nháº­n hÃ ng" },
-        { ten: "PhÃ­ giao hÃ ng" },
+        { ten: "Giá trị hàng hoá" },
+        { ten: "Thuế nhà thầu" },
+        { ten: "Thuế VAT" },
+        { ten: "Phí nhận hàng" },
+        { ten: "Phí giao hàng" },
       ]);
 
     await db
       .insert(schema.loaiTrangBi)
       .values([
-        { ten: "Trang bá»‹ CÃ´ng nghá»‡ thÃ´ng tin" },
-        { ten: "Trang bá»‹ Ä‘iá»‡n tá»­" },
-        { ten: "Trang bá»‹ HoÃ¡ há»c" },
-        { ten: "Lá»¥c quÃ¢n" },
-        { ten: "ChÃ­nh trá»‹" },
-        { ten: "KhÃ´ng quÃ¢n" },
-        { ten: "PhÃ²ng khÃ´ng" },
-        { ten: "Háº£i quÃ¢n" },
-        { ten: "TÃ¬nh bÃ¡o" },
-        { ten: "BiÃªn phÃ²ng" },
-        { ten: "QuÃ¢n y" },
-        { ten: "Doanh tráº¡i" },
-        { ten: "Váº­n táº£i" },
-        { ten: "XÄƒng dáº§u" },
-        { ten: "QuÃ¢n nhu" },
-        { ten: "QuÃ¢n khÃ­" },
-        { ten: "TuyÃªn huáº¥n" },
-        { ten: "Báº£o vá»‡ an ninh" },
-        { ten: "GÃ¬n giá»¯ hoÃ  bÃ¬nh" },
-        { ten: "TÃ i chÃ­nh" },
-        { ten: "Äá»‘i ngoáº¡i" },
-        { ten: "Cáº£nh sÃ¡t biá»ƒn" },
-        { ten: "CÃ´ng binh" },
-        { ten: "ThÃ´ng tin liÃªn láº¡c" },
-        { ten: "TÃ¡c chiáº¿n Ä‘iá»‡n tá»­" },
-        { ten: "Äá»‹a hÃ¬nh quÃ¢n sá»±" },
-        { ten: "PhÃ¡o binh" },
-        { ten: "TÄƒng thiáº¿t giÃ¡p" },
-        { ten: "PhÃ²ng hoÃ¡" },
+        { ten: "Trang bị Công nghệ thông tin" },
+        { ten: "Trang bị điện tử" },
+        { ten: "Trang bị Hoá học" },
+        { ten: "Lục quân" },
+        { ten: "Chính trị" },
+        { ten: "Không quân" },
+        { ten: "Phòng không" },
+        { ten: "Hải quân" },
+        { ten: "Tình báo" },
+        { ten: "Biên phòng" },
+        { ten: "Quân y" },
+        { ten: "Doanh trại" },
+        { ten: "Vận tải" },
+        { ten: "Xăng dầu" },
+        { ten: "Quân nhu" },
+        { ten: "Quân khí" },
+        { ten: "Tuyên huấn" },
+        { ten: "Bảo vệ an ninh" },
+        { ten: "Gìn giữ hoà bình" },
+        { ten: "Tài chính" },
+        { ten: "Đối ngoại" },
+        { ten: "Cảnh sát biển" },
+        { ten: "Công binh" },
+        { ten: "Thông tin liên lạc" },
+        { ten: "Tác chiến điện tử" },
+        { ten: "Địa hình quân sự" },
+        { ten: "Pháo binh" },
+        { ten: "Tăng thiết giáp" },
+        { ten: "Phòng hoá" },
       ]);
 
     await db.insert(schema.trangThaiHopDong).values([
@@ -675,58 +705,58 @@ export async function initializeDatabase() {
     ]);
 
     await db.insert(schema.loaiHoaDon).values([
-      { ten: "HÃ³a Ä‘Æ¡n giÃ¡ trá»‹ gia tÄƒng (GTGT)" },
-      { ten: "HÃ³a Ä‘Æ¡n thÆ°Æ¡ng máº¡i (Commercial Invoice)" },
-      { ten: "HÃ³a Ä‘Æ¡n xuáº¥t kháº©u" },
+      { ten: "Hóa đơn giá trị gia tăng (GTGT)" },
+      { ten: "Hóa đơn thương mại (Commercial Invoice)" },
+      { ten: "Hóa đơn xuất khẩu" },
     ]);
 
     await db.insert(schema.loaiBaoLanh).values([
-      { tenLoai: "Báº£o lÃ£nh thá»±c hiá»‡n há»£p Ä‘á»“ng" },
-      { tenLoai: "Báº£o lÃ£nh táº¡m á»©ng" },
-      { tenLoai: "Báº£o lÃ£nh báº£o hÃ nh" },
-      { tenLoai: "Báº£o lÃ£nh dá»± tháº§u" },
+      { tenLoai: "Bảo lãnh thực hiện hợp đồng" },
+      { tenLoai: "Bảo lãnh tạm ứng" },
+      { tenLoai: "Bảo lãnh bảo hành" },
+      { tenLoai: "Bảo lãnh dự thầu" },
     ]);
 
     await db.insert(schema.canBo).values([
       {
-        ten: "Quáº£n trá»‹ viÃªn",
-        chucVu: "TrÆ°á»Ÿng phÃ²ng",
+        ten: "Quản trị viên",
+        chucVu: "Trưởng phòng",
         soDienThoai: "0123456789",
         email: "ngovankang@customs.gov.vn",
-        diaChi: "HÃ  Ná»™i",
-        moTa: "TrÆ°á»Ÿng phÃ²ng vá»›i 15 nÄƒm kinh nghiá»‡m",
+        diaChi: "Hà Nội",
+        moTa: "Trưởng phòng với 15 năm kinh nghiệm",
       },
       {
-        ten: "Nguyá»…n VÄƒn SÃ¡u",
-        chucVu: "PhÃ³ trÆ°á»Ÿng phÃ²ng",
+        ten: "Nguyễn Văn Sáu",
+        chucVu: "Phó trưởng phòng",
         soDienThoai: "0987654321",
         email: "nguyenvansau@customs.gov.vn",
-        diaChi: "HÃ  Ná»™i",
-        moTa: "PhÃ³ trÆ°á»Ÿng phÃ²ng phá»¥ trÃ¡ch nghiá»‡p vá»¥",
+        diaChi: "Hà Nội",
+        moTa: "Phó trưởng phòng phụ trách nghiệp vụ",
       },
       {
-        ten: "HoÃ ng VÄƒn CÃ´ng",
-        chucVu: "Trá»£ lÃ½",
+        ten: "Hoàng Văn Công",
+        chucVu: "Trợ lý",
         soDienThoai: "0112233445",
         email: "hoangvancong@customs.gov.vn",
-        diaChi: "HÃ  Ná»™i",
-        moTa: "Trá»£ lÃ½ trÆ°á»Ÿng phÃ²ng",
+        diaChi: "Hà Nội",
+        moTa: "Trợ lý trưởng phòng",
       },
       {
-        ten: "Phan QuÃ¢n",
-        chucVu: "Trá»£ lÃ½",
+        ten: "Phan Quân",
+        chucVu: "Trợ lý",
         soDienThoai: "0556677889",
         email: "phanquan@customs.gov.vn",
-        diaChi: "HÃ  Ná»™i",
-        moTa: "Trá»£ lÃ½ chuyÃªn viÃªn",
+        diaChi: "Hà Nội",
+        moTa: "Trợ lý chuyên viên",
       },
       {
-        ten: "TÃ´ QuyÃªn",
-        chucVu: "Trá»£ lÃ½",
+        ten: "Tô Quyên",
+        chucVu: "Trợ lý",
         soDienThoai: "0334455667",
         email: "toquyen@customs.gov.vn",
-        diaChi: "HÃ  Ná»™i",
-        moTa: "Trá»£ lÃ½ ká»¹ thuáº­t",
+        diaChi: "Hà Nội",
+        moTa: "Trợ lý kỹ thuật",
       },
     ]);
 
@@ -738,27 +768,27 @@ export async function initializeDatabase() {
         email: "contact@yxg.com.sg",
         nguoiLienHe: "Lim Wei Ming",
         chucVuNguoiLienHe: "Sales Director",
-        moTa: "NhÃ  cung cáº¥p thiáº¿t bá»‹ cÃ´ng nghá»‡ cao",
+        moTa: "Nhà cung cấp thiết bị công nghệ cao",
         maQuocGia: "SG",
       },
       {
         ten: "Yamaha",
-        diaChi: "Madrid, TÃ¢y Ban Nha",
+        diaChi: "Madrid, Tây Ban Nha",
         soDienThoai: "+34 91 555 6789",
         email: "spain@yamaha.com",
         nguoiLienHe: "Carlos Rodriguez",
         chucVuNguoiLienHe: "Regional Manager",
-        moTa: "CÃ´ng ty sáº£n xuáº¥t thiáº¿t bá»‹ Ã¢m thanh vÃ  Ä‘iá»‡n tá»­",
+        moTa: "Công ty sản xuất thiết bị âm thanh và điện tử",
         maQuocGia: "ES",
       },
       {
         ten: "Corpus",
-        diaChi: "Praha, CH SÃ©c",
+        diaChi: "Praha, CH Séc",
         soDienThoai: "+420 222 555 888",
         email: "info@corpus.cz",
-        nguoiLienHe: "Pavel NovÃ¡k",
+        nguoiLienHe: "Pavel Novák",
         chucVuNguoiLienHe: "Export Manager",
-        moTa: "NhÃ  sáº£n xuáº¥t thiáº¿t bá»‹ y táº¿ vÃ  khoa há»c",
+        moTa: "Nhà sản xuất thiết bị y tế và khoa học",
         maQuocGia: "CZ",
       },
     ]);
@@ -781,31 +811,31 @@ export async function initializeDatabase() {
 
     await db.insert(schema.chuDauTu).values([
       {
-        ten: "Cá»¥c Y táº¿",
-        diaChi: "138A Giáº£ng VÃµ, Äá»‘ng Äa, HÃ  Ná»™i",
+        ten: "Cục Y tế",
+        diaChi: "138A Giảng Võ, Đống Đa, Hà Nội",
         soDienThoai: "024-3962-5555",
         email: "cuc.yte@moh.gov.vn",
-        nguoiLienHe: "Pháº¡m Duy Tuáº¥n",
-        chucVuNguoiLienHe: "Cá»¥c trÆ°á»Ÿng",
-        moTa: "CÆ¡ quan quáº£n lÃ½ y táº¿ dá»± phÃ²ng vÃ  y táº¿ cÃ´ng cá»™ng",
+        nguoiLienHe: "Phạm Duy Tuấn",
+        chucVuNguoiLienHe: "Cục trưởng",
+        moTa: "Cơ quan quản lý y tế dự phòng và y tế công cộng",
       },
       {
-        ten: "Cá»¥c Tráº¯c Ä‘á»‹a",
-        diaChi: "1 HoÃ ng Diá»‡u, Ba ÄÃ¬nh, HÃ  Ná»™i",
+        ten: "Cục Trắc địa",
+        diaChi: "1 Hoàng Diệu, Ba Đình, Hà Nội",
         soDienThoai: "024-3734-6666",
         email: "cuc.tracdia@monre.gov.vn",
-        nguoiLienHe: "LÃª VÄƒn Nam",
-        chucVuNguoiLienHe: "Cá»¥c trÆ°á»Ÿng",
-        moTa: "CÆ¡ quan quáº£n lÃ½ Ä‘o Ä‘áº¡c báº£n Ä‘á»“ vÃ  thÃ´ng tin Ä‘á»‹a lÃ½",
+        nguoiLienHe: "Lê Văn Nam",
+        chucVuNguoiLienHe: "Cục trưởng",
+        moTa: "Cơ quan quản lý đo đạc bản đồ và thông tin địa lý",
       },
       {
-        ten: "Cá»¥c Váº­n táº£i",
-        diaChi: "80 Tráº§n HÆ°ng Äáº¡o, HoÃ n Kiáº¿m, HÃ  Ná»™i",
+        ten: "Cục Vận tải",
+        diaChi: "80 Trần Hưng Đạo, Hoàn Kiếm, Hà Nội",
         soDienThoai: "024-3942-7777",
         email: "cuc.vantai@mt.gov.vn",
-        nguoiLienHe: "Nguyá»…n VÄƒn HÃ¹ng",
-        chucVuNguoiLienHe: "Cá»¥c trÆ°á»Ÿng",
-        moTa: "CÆ¡ quan quáº£n lÃ½ váº­n táº£i Ä‘Æ°á»ng bá»™, Ä‘Æ°á»ng sáº¯t, Ä‘Æ°á»ng thá»§y",
+        nguoiLienHe: "Nguyễn Văn Hùng",
+        chucVuNguoiLienHe: "Cục trưởng",
+        moTa: "Cơ quan quản lý vận tải đường bộ, đường sắt, đường thủy",
       },
     ]);
 

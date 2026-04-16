@@ -1,9 +1,7 @@
-import exp from "constants";
-
 const getCountryFlagUrl = (countryCode: string | null): string => {
-  if (!countryCode) return "https://flagcdn.com/w40/un.png"; // mặc định: Liên Hợp Quốc
+  const code = countryCode?.trim().toLowerCase() || "un";
 
-  return `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
+  return `/flags/4x3/${code}.svg`;
 };
 
 export default getCountryFlagUrl;

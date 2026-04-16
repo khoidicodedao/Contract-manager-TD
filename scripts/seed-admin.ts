@@ -25,6 +25,19 @@ async function createAdmin() {
       .limit(1);
 
     if (existingUser) {
+      const hashedPassword = await hashPassword(password);
+      await db
+        .update(users)
+        .set({
+          password: hashedPassword,
+          role: "admin",
+          phongBanId: null,
+        })
+        .where(eq(users.username, username));
+
+      console.log(`Da reset mat khau cho tai khoan ${username}`);
+      console.log(`Username: ${username}`);
+      console.log(`Password: ${password}`);
       console.log(`Tài khoản ${username} đã tồn tại với ID: ${existingUser.id}`);
       process.exit(0);
     }
