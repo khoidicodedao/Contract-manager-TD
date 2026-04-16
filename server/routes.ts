@@ -34,6 +34,7 @@ import {
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import os from "os";
 import { z } from "zod";
 const upload = multer({
   storage: multer.memoryStorage(), // Lưu file trong RAM (có thể đổi thành diskStorage)
@@ -1850,6 +1851,156 @@ export async function registerRoutes(app: Express): Promise<void> {
   });
 
   // --- DATABASE BACKUP & RESTORE ---
+
+  app.get("/api/backup", async (req, res) => {
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const filename = `backup-contract-management-${timestamp}.sqlite`;
+      const backupPath = path.join(os.tmpdir(), filename);
+
+      await sqlite.backup(backupPath);
+
+      res.download(backupPath, filename, (err) => {
+        fs.rm(backupPath, { force: true }, () => {});
+        if (err) {
+          console.error("Error downloading backup:", err);
+        }
+      });
+    } catch (error) {
+      console.error("Backup error:", error);
+      res.status(500).json({ error: "System error during backup" });
+    }
+  });
+
+  app.post("/api/restore", upload.single("file"), async (req, res) => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const restoreAlias = `restore_${Date.now()}`;
+    const tempRestorePath = path.join(os.tmpdir(), `restore-contract-management-${timestamp}.sqlite`);
+    let attached = false;
+
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "Vui lòng chọn file backup để khôi phục" });
+      }
+
+      fs.writeFileSync(tempRestorePath, req.file.buffer);
+      sqlite.exec(`ATTACH DATABASE ${quoteSqlString(tempRestorePath)} AS ${restoreAlias}`);
+      attached = true;
+
+      const integrity = sqlite
+        .prepare(`PRAGMA ${restoreAlias}.integrity_check`)
+        .all() as Array<Record<string, string>>;
+      const firstIntegrityResult = Object.values(integrity[0] ?? {})[0];
+      if (firstIntegrityResult !== "ok") {
+        return res.status(400).json({ error: "File backup không hợp lệ hoặc đã bị lỗi." });
+      }
+
+      const dbPath = path.resolve(process.cwd(), "database.sqlite");
+      if (fs.existsSync(dbPath)) {
+        const autoBackupPath = `${dbPath}.auto-backup-${timestamp}.bak`;
+        try {
+          await sqlite.backup(autoBackupPath);
+        } catch (backupError) {
+          console.error("Consistent auto-backup failed, falling back to raw database copy:", backupError);
+          fs.copyFileSync(dbPath, autoBackupPath);
+        }
+        console.log(`Auto-backup created at ${autoBackupPath}`);
+      }
+
+      sqlite.exec("PRAGMA foreign_keys = OFF");
+      sqlite.exec("BEGIN IMMEDIATE");
+
+      try {
+        const restoredTables = sqlite
+          .prepare(`
+            SELECT name, sql
+            FROM ${restoreAlias}.sqlite_master
+            WHERE type = 'table'
+              AND name NOT LIKE 'sqlite_%'
+              AND sql IS NOT NULL
+            ORDER BY name
+          `)
+          .all() as Array<{ name: string; sql: string }>;
+
+        const mainTables = sqlite
+          .prepare(`
+            SELECT name
+            FROM main.sqlite_master
+            WHERE type = 'table'
+              AND name NOT LIKE 'sqlite_%'
+            ORDER BY name
+          `)
+          .all() as Array<{ name: string }>;
+
+        for (const { name } of mainTables) {
+          sqlite.exec(`DROP TABLE IF EXISTS main.${quoteIdentifier(name)}`);
+        }
+
+        for (const { sql } of restoredTables) {
+          sqlite.exec(sql);
+        }
+
+        for (const { name } of restoredTables) {
+          sqlite.exec(`
+            INSERT INTO main.${quoteIdentifier(name)}
+            SELECT * FROM ${restoreAlias}.${quoteIdentifier(name)}
+          `);
+        }
+
+        const restoredObjects = sqlite
+          .prepare(`
+            SELECT sql
+            FROM ${restoreAlias}.sqlite_master
+            WHERE type IN ('index', 'trigger', 'view')
+              AND sql IS NOT NULL
+            ORDER BY CASE type WHEN 'index' THEN 1 WHEN 'trigger' THEN 2 ELSE 3 END, name
+          `)
+          .all() as Array<{ sql: string }>;
+
+        for (const { sql } of restoredObjects) {
+          sqlite.exec(sql);
+        }
+
+        const hasRestoreSequence = sqlite
+          .prepare(`
+            SELECT 1 AS found
+            FROM ${restoreAlias}.sqlite_master
+            WHERE type = 'table' AND name = 'sqlite_sequence'
+          `)
+          .get() as { found: number } | undefined;
+
+        if (hasRestoreSequence) {
+          sqlite.exec("DELETE FROM main.sqlite_sequence");
+          sqlite.exec(`
+            INSERT INTO main.sqlite_sequence(name, seq)
+            SELECT name, seq FROM ${restoreAlias}.sqlite_sequence
+          `);
+        }
+
+        sqlite.exec("COMMIT");
+      } catch (restoreError) {
+        try {
+          sqlite.exec("ROLLBACK");
+        } catch {}
+        throw restoreError;
+      } finally {
+        sqlite.exec("PRAGMA foreign_keys = ON");
+      }
+
+      sqlite.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+      res.json({ message: "Khôi phục dữ liệu thành công. Vui lòng tải lại trang." });
+    } catch (error) {
+      console.error("Error restoring database:", error);
+      res.status(500).json({ error: "Không thể khôi phục dữ liệu từ file backup." });
+    } finally {
+      if (attached) {
+        try {
+          sqlite.exec(`DETACH DATABASE ${restoreAlias}`);
+        } catch {}
+      }
+      fs.rm(tempRestorePath, { force: true }, () => {});
+    }
+  });
 
   // Backup Database
   app.get("/api/backup", (req, res) => {
