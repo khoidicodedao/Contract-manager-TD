@@ -14,8 +14,8 @@ async function hashPassword(password: string) {
 
 async function createAdmin() {
   try {
-    const username = "giadinh_admin";
-    const password = "adminpassword123";
+    const username = "admin";
+    const password = "admin";
     
     // Kiểm tra xem đã tồn tại chưa
     const [existingUser] = await db

@@ -9,7 +9,6 @@ export const sqlite = new Database("./database.sqlite");
 sqlite.pragma("journal_mode = WAL");
 sqlite.pragma("busy_timeout = 5000");
 export const db = drizzle(sqlite, { schema });
-const DB_INITIALIZED_KEY = "DB_INITIALIZED";
 const scryptAsync = promisify(scrypt);
 
 async function hashPassword(password: string) {
@@ -19,8 +18,8 @@ async function hashPassword(password: string) {
 }
 
 async function ensureDefaultAdmin() {
-  const username = "giadinh_admin";
-  const password = "adminpassword123";
+  const username = "admin";
+  const password = "admin";
   const existingAdmin = sqlite
     .prepare("SELECT id FROM users WHERE username = ? LIMIT 1")
     .get(username) as { id: number } | undefined;
@@ -36,22 +35,6 @@ async function ensureDefaultAdmin() {
     .run(username, await hashPassword(password), "admin", null);
 
   console.log(`Created default admin account: ${username}`);
-}
-
-function getSystemSetting(key: string): { key: string; value: string | null } | undefined {
-  return sqlite
-    .prepare("SELECT key, value FROM system_settings WHERE key = ?")
-    .get(key) as { key: string; value: string | null } | undefined;
-}
-
-function upsertSystemSetting(key: string, value: string) {
-  sqlite
-    .prepare(`
-      INSERT INTO system_settings (key, value)
-      VALUES (?, ?)
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    `)
-    .run(key, value);
 }
 
 // Create tables manually since we don't have migrations
@@ -566,292 +549,13 @@ function addMissingColumns() {
   } catch (e) { }
 }
 
-// Initialize database with sample data
+// Initialize database schema and the single default admin account.
 export async function initializeDatabase() {
   console.log("Initializing SQLite database...");
 
-  // Create tables first
   createTables();
-
-  // Seed default system settings
-  const defaultSettings = [
-    { key: "SYSTEM_NAME", value: "Quản lý dự án" },
-    { key: "DEVELOPER_NAME", value: "Tran Ngoc Tuan" },
-    { key: "USER_NAME", value: "Ngô Văn Khang" },
-    { key: "USER_ROLE", value: "Quản lý dự án / Vaxuco" },
-    { key: "USER_PHOTO", value: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&h=100" },
-    { key: "DEVELOPER_PHOTO", value: "/placeholder-logo.png" },
-  ];
-
-  for (const s of defaultSettings) {
-    try {
-      sqlite.prepare("INSERT OR IGNORE INTO system_settings (key, value) VALUES (?, ?)").run(s.key, s.value);
-    } catch (e) {
-      console.error(`Error seeding setting ${s.key}:`, e);
-    }
-  }
-
-  // Migrate schema for existing tables
   addMissingColumns();
   await ensureDefaultAdmin();
 
-  let transactionOpen = false;
-
-  try {
-    sqlite.exec("BEGIN IMMEDIATE");
-    transactionOpen = true;
-
-    const initializedMarker = getSystemSetting(DB_INITIALIZED_KEY);
-    if (initializedMarker?.value) {
-      console.log("Database already initialized, skipping seed");
-      sqlite.exec("COMMIT");
-      transactionOpen = false;
-      return;
-    }
-
-    const existingContract = sqlite
-      .prepare("SELECT id FROM hop_dong LIMIT 1")
-      .get() as { id: number } | undefined;
-
-    if (existingContract) {
-      console.log("Database already has data, marking initialization as completed");
-      upsertSystemSetting(DB_INITIALIZED_KEY, new Date().toISOString());
-      sqlite.exec("COMMIT");
-      transactionOpen = false;
-      return;
-    }
-
-    console.log("Seeding database with initial data...");
-
-    await db
-      .insert(schema.loaiHopDong)
-      .values([
-        { ten: "Nhập khẩu" },
-        { ten: "Xuất khẩu" },
-        { ten: "Tạm xuất – Tái nhập" },
-        { ten: "Tạm nhập – Tái xuất" },
-      ]);
-
-    await db
-      .insert(schema.loaiNganSach)
-      .values([
-        { ten: "Ngân sách thường xuyên" },
-        { ten: "Ngân sách dôi dư" },
-        { ten: "Ngân sách 432" },
-        { ten: "Ngân sách đặc biệt" },
-        { ten: "Ngân sách đặc thù" },
-      ]);
-
-    await db
-      .insert(schema.loaiTien)
-      .values([{ ten: "USD" }, { ten: "EUR" }, { ten: "VNĐ" }]);
-
-    await db
-      .insert(schema.loaiHinhThucThanhToan)
-      .values([
-        { ten: "Điện chuyển tiền L/C" },
-        { ten: "Tiền mặt" },
-        { ten: "Chuyển khoản" },
-      ]);
-
-    await db
-      .insert(schema.loaiThanhToan)
-      .values([
-        { ten: "Giá trị hàng hoá" },
-        { ten: "Thuế nhà thầu" },
-        { ten: "Thuế VAT" },
-        { ten: "Phí nhận hàng" },
-        { ten: "Phí giao hàng" },
-      ]);
-
-    await db
-      .insert(schema.loaiTrangBi)
-      .values([
-        { ten: "Trang bị Công nghệ thông tin" },
-        { ten: "Trang bị điện tử" },
-        { ten: "Trang bị Hoá học" },
-        { ten: "Lục quân" },
-        { ten: "Chính trị" },
-        { ten: "Không quân" },
-        { ten: "Phòng không" },
-        { ten: "Hải quân" },
-        { ten: "Tình báo" },
-        { ten: "Biên phòng" },
-        { ten: "Quân y" },
-        { ten: "Doanh trại" },
-        { ten: "Vận tải" },
-        { ten: "Xăng dầu" },
-        { ten: "Quân nhu" },
-        { ten: "Quân khí" },
-        { ten: "Tuyên huấn" },
-        { ten: "Bảo vệ an ninh" },
-        { ten: "Gìn giữ hoà bình" },
-        { ten: "Tài chính" },
-        { ten: "Đối ngoại" },
-        { ten: "Cảnh sát biển" },
-        { ten: "Công binh" },
-        { ten: "Thông tin liên lạc" },
-        { ten: "Tác chiến điện tử" },
-        { ten: "Địa hình quân sự" },
-        { ten: "Pháo binh" },
-        { ten: "Tăng thiết giáp" },
-        { ten: "Phòng hoá" },
-      ]);
-
-    await db.insert(schema.trangThaiHopDong).values([
-      { trangThai: 1 },
-      { trangThai: 2 },
-      { trangThai: 3 },
-    ]);
-
-    await db.insert(schema.loaiHoaDon).values([
-      { ten: "Hóa đơn giá trị gia tăng (GTGT)" },
-      { ten: "Hóa đơn thương mại (Commercial Invoice)" },
-      { ten: "Hóa đơn xuất khẩu" },
-    ]);
-
-    await db.insert(schema.loaiBaoLanh).values([
-      { tenLoai: "Bảo lãnh thực hiện hợp đồng" },
-      { tenLoai: "Bảo lãnh tạm ứng" },
-      { tenLoai: "Bảo lãnh bảo hành" },
-      { tenLoai: "Bảo lãnh dự thầu" },
-    ]);
-
-    await db.insert(schema.canBo).values([
-      {
-        ten: "Quản trị viên",
-        chucVu: "Trưởng phòng",
-        soDienThoai: "0123456789",
-        email: "ngovankang@customs.gov.vn",
-        diaChi: "Hà Nội",
-        moTa: "Trưởng phòng với 15 năm kinh nghiệm",
-      },
-      {
-        ten: "Nguyễn Văn Sáu",
-        chucVu: "Phó trưởng phòng",
-        soDienThoai: "0987654321",
-        email: "nguyenvansau@customs.gov.vn",
-        diaChi: "Hà Nội",
-        moTa: "Phó trưởng phòng phụ trách nghiệp vụ",
-      },
-      {
-        ten: "Hoàng Văn Công",
-        chucVu: "Trợ lý",
-        soDienThoai: "0112233445",
-        email: "hoangvancong@customs.gov.vn",
-        diaChi: "Hà Nội",
-        moTa: "Trợ lý trưởng phòng",
-      },
-      {
-        ten: "Phan Quân",
-        chucVu: "Trợ lý",
-        soDienThoai: "0556677889",
-        email: "phanquan@customs.gov.vn",
-        diaChi: "Hà Nội",
-        moTa: "Trợ lý chuyên viên",
-      },
-      {
-        ten: "Tô Quyên",
-        chucVu: "Trợ lý",
-        soDienThoai: "0334455667",
-        email: "toquyen@customs.gov.vn",
-        diaChi: "Hà Nội",
-        moTa: "Trợ lý kỹ thuật",
-      },
-    ]);
-
-    await db.insert(schema.nhaCungCap).values([
-      {
-        ten: "YXG",
-        diaChi: "Singapore, Singapore",
-        soDienThoai: "+65 6555 1234",
-        email: "contact@yxg.com.sg",
-        nguoiLienHe: "Lim Wei Ming",
-        chucVuNguoiLienHe: "Sales Director",
-        moTa: "Nhà cung cấp thiết bị công nghệ cao",
-        maQuocGia: "SG",
-      },
-      {
-        ten: "Yamaha",
-        diaChi: "Madrid, Tây Ban Nha",
-        soDienThoai: "+34 91 555 6789",
-        email: "spain@yamaha.com",
-        nguoiLienHe: "Carlos Rodriguez",
-        chucVuNguoiLienHe: "Regional Manager",
-        moTa: "Công ty sản xuất thiết bị âm thanh và điện tử",
-        maQuocGia: "ES",
-      },
-      {
-        ten: "Corpus",
-        diaChi: "Praha, CH Séc",
-        soDienThoai: "+420 222 555 888",
-        email: "info@corpus.cz",
-        nguoiLienHe: "Pavel Novák",
-        chucVuNguoiLienHe: "Export Manager",
-        moTa: "Nhà sản xuất thiết bị y tế và khoa học",
-        maQuocGia: "CZ",
-      },
-    ]);
-
-    await db
-      .insert(schema.dieuKienGiaoHang)
-      .values([
-        { ten: "Ex Works(EXW)" },
-        { ten: "Free Carrier (FCA)" },
-        { ten: "Carriage Paid To(CPT)" },
-        { ten: "Carriage and Insurance Paid To(CIP)" },
-        { ten: "Delivered at Terminal(DAT)" },
-        { ten: "Delivered at Place(DAP)" },
-        { ten: "Delivered Duty Paid (DDP)" },
-        { ten: "Free Alongside Ship(FAS)" },
-        { ten: "Cost and Freight(CFR)" },
-        { ten: "Free On Board(FOB)" },
-        { ten: "Cost, Insurance and Freight(CIF)" },
-      ]);
-
-    await db.insert(schema.chuDauTu).values([
-      {
-        ten: "Cục Y tế",
-        diaChi: "138A Giảng Võ, Đống Đa, Hà Nội",
-        soDienThoai: "024-3962-5555",
-        email: "cuc.yte@moh.gov.vn",
-        nguoiLienHe: "Phạm Duy Tuấn",
-        chucVuNguoiLienHe: "Cục trưởng",
-        moTa: "Cơ quan quản lý y tế dự phòng và y tế công cộng",
-      },
-      {
-        ten: "Cục Trắc địa",
-        diaChi: "1 Hoàng Diệu, Ba Đình, Hà Nội",
-        soDienThoai: "024-3734-6666",
-        email: "cuc.tracdia@monre.gov.vn",
-        nguoiLienHe: "Lê Văn Nam",
-        chucVuNguoiLienHe: "Cục trưởng",
-        moTa: "Cơ quan quản lý đo đạc bản đồ và thông tin địa lý",
-      },
-      {
-        ten: "Cục Vận tải",
-        diaChi: "80 Trần Hưng Đạo, Hoàn Kiếm, Hà Nội",
-        soDienThoai: "024-3942-7777",
-        email: "cuc.vantai@mt.gov.vn",
-        nguoiLienHe: "Nguyễn Văn Hùng",
-        chucVuNguoiLienHe: "Cục trưởng",
-        moTa: "Cơ quan quản lý vận tải đường bộ, đường sắt, đường thủy",
-      },
-    ]);
-
-    const { seedSQLiteDatabase } = await import("./seed-data-sqlite");
-    await seedSQLiteDatabase();
-
-    upsertSystemSetting(DB_INITIALIZED_KEY, new Date().toISOString());
-    sqlite.exec("COMMIT");
-    transactionOpen = false;
-
-    console.log("Database initialization completed!");
-  } catch (error) {
-    if (transactionOpen) {
-      sqlite.exec("ROLLBACK");
-    }
-    throw error;
-  }
+  console.log("Database initialization completed without sample data.");
 }
-
