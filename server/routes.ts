@@ -51,6 +51,11 @@ export async function registerRoutes(app: Express): Promise<void> {
     next();
   });
 
+  const getExchangeRate = (value: unknown): number => {
+    const rate = Number(value);
+    return Number.isFinite(rate) && rate > 0 ? rate : 1;
+  };
+
   // Helper ghi log hệ thống
   async function logAction(req: any, action: string, targetType: string, targetId: number | null, details: string, hopDongId?: number | null) {
     if (req.user) {
@@ -337,7 +342,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         );
         const total = relatedContracts.reduce((sum, c) => {
           const phiUyThac = parseFloat(c.phiUyThac?.toString() || "0");
-          const tyGia = parseFloat(c.tyGia?.toString() || "1"); // default 1 nếu không có tỷ giá
+          const tyGia = getExchangeRate(c.tyGia);
           return sum + phiUyThac * tyGia;
         }, 0);
         return {
@@ -347,7 +352,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       });
       const totalUyThacVND = contracts.reduce((sum, c) => {
         const phiUyThac = parseFloat(c.phiUyThac?.toString() || "0");
-        const tyGia = parseFloat(c.tyGia?.toString() || "1");
+        const tyGia = getExchangeRate(c.tyGia);
         return sum + phiUyThac * tyGia;
       }, 0);
       const totalPaidValue = payments
@@ -355,7 +360,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         .reduce((sum, p) => {
           const contract = contracts.find(c => c.id === p.hopDongId);
           if (!contract) return sum;
-          const tyGia = parseFloat(contract.tyGia?.toString() || "1");
+          const tyGia = getExchangeRate(contract.tyGia);
           return sum + (p.soTien || 0) * tyGia;
         }, 0);
 
@@ -372,7 +377,7 @@ export async function registerRoutes(app: Express): Promise<void> {
           0
         ),
         totalValueVND: contracts.reduce((sum, c) => {
-          const tyGia = parseFloat(c.tyGia?.toString() || "1");
+          const tyGia = getExchangeRate(c.tyGia);
           return sum + (c.giaTriHopDong || 0) * tyGia;
         }, 0),
         totalPaidValue,
